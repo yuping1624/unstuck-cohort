@@ -61,8 +61,9 @@ CREATE INDEX idx_members_discord   ON members(discord_id);
 
 -- =============================================
 -- 週排行榜 Function（Bot !leaderboard 指令用）
+-- 依「活動第 N 週」：week_start <= date < week_end
 -- =============================================
-CREATE OR REPLACE FUNCTION weekly_leaderboard(week_start DATE)
+CREATE OR REPLACE FUNCTION weekly_leaderboard(week_start DATE, week_end DATE)
 RETURNS TABLE (
   display_name  TEXT,
   discord_id    TEXT,
@@ -76,6 +77,7 @@ RETURNS TABLE (
   LEFT JOIN checkins c
     ON c.member_id = m.id
     AND c.date >= week_start
+    AND c.date < week_end
   GROUP BY m.id, m.display_name, m.discord_id
   HAVING COUNT(c.id) > 0
   ORDER BY checkin_count DESC

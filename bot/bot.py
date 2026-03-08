@@ -7,7 +7,7 @@ import os
 import re
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import discord
 from discord.ext import commands, tasks
 from supabase import create_client, Client
@@ -465,11 +465,23 @@ async def stats(ctx, member: discord.Member = None):
 # ─────────────────────────────────────────
 @bot.command(name="leaderboard", aliases=["lb"])
 async def leaderboard(ctx):
-    """本週打卡排行榜"""
-    week_start = (datetime.now(TZ) - timedelta(days=datetime.now(TZ).weekday())).strftime("%Y-%m-%d")
-    
-    # 本週每人打卡天數
-    result = supabase.rpc("weekly_leaderboard", {"week_start": week_start}).execute()
+    """本週打卡排行榜（依「求職 12 週」的活動週次，第 1 週 = 3/9 起算）"""
+    cw = current_week()
+    if cw == 0:
+        await ctx.reply("活動尚未開始（3/9 起為第 1 週），屆時再來查排行榜 💪")
+        return
+
+    # 活動第 N 週的日期範圍（台灣時間）：3/9 + (N-1)*7 ～ 3/9 + N*7（不含）
+    first_monday = date(2026, 3, 9)
+    week_start = first_monday + timedelta(days=(cw - 1) * 7)
+    week_end = week_start + timedelta(days=7)
+    week_start_str = week_start.strftime("%Y-%m-%d")
+    week_end_str = week_end.strftime("%Y-%m-%d")
+
+    result = supabase.rpc("weekly_leaderboard", {
+        "week_start": week_start_str,
+        "week_end": week_end_str,
+    }).execute()
 
     embed = discord.Embed(
         title=f"🏆 {week_label()}打卡排行榜",
@@ -483,7 +495,7 @@ async def leaderboard(ctx):
         lines.append(f"{medal} **{row['display_name']}** — {row['checkin_count']} 天")
 
     embed.description = "\n".join(lines) if lines else "本週還沒有人打卡！"
-    embed.set_footer(text="每天打卡就能上榜 💪")
+    embed.set_footer(text=f"統計範圍：{week_start_str}～{week_end_str}（活動第 {cw} 週）")
     await ctx.reply(embed=embed)
 
 
