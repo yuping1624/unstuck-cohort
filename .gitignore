@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv
+venv/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Env Files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

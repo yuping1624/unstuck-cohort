@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+/* 深色模式（預設） */
+:root,
+[data-theme="dark"] {
+  --app-bg: #0d0f14;
+  --sidebar-bg: #0f1117;
+  --card-bg: #12151c;
+  --card-bg-alt: #1a1e28;
+  --border: #1e2433;
+  --border-light: #252a38;
+  --text: #e2e8f0;
+  --text-soft: #cbd5e1;
+  --muted: #94a3b8;
+  --muted2: #64748b;
+  --muted3: #475569;
+  --accent: #4f8ef7;
+  --accent-soft: rgba(79, 142, 247, 0.15);
+  --accent-border: rgba(79, 142, 247, 0.2);
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.2);
+  --overlay: rgba(0, 0, 0, 0.7);
+  --input-bg: #0f1117;
+  --hover: rgba(255, 255, 255, 0.04);
+}
+
+/* 淺色模式 */
+[data-theme="light"] {
+  --app-bg: #f1f5f9;
+  --sidebar-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-bg-alt: #f8fafc;
+  --border: #e2e8f0;
+  --border-light: #cbd5e1;
+  --text: #0f172a;
+  --text-soft: #334155;
+  --muted: #64748b;
+  --muted2: #94a3b8;
+  --muted3: #94a3b8;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --accent-border: rgba(37, 99, 235, 0.3);
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.1);
+  --overlay: rgba(15, 23, 42, 0.4);
+  --input-bg: #f8fafc;
+  --hover: rgba(15, 23, 42, 0.04);
+}
+
+:root {
+  --background: var(--app-bg);
+  --foreground: var(--text);
+}
+
+body {
+  color: var(--foreground);
+  background: var(--app-bg);
+  font-family: 'Noto Sans TC', 'Hiragino Kaku Gothic Pro', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 2px;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.fade-up {
+  animation: fadeUp 0.4s ease both;
+}
+
+.fade-up-1 {
+  animation: fadeUp 0.4s 0.05s ease both;
+}
+
+.fade-up-2 {
+  animation: fadeUp 0.4s 0.1s ease both;
+}
+
+.fade-up-3 {
+  animation: fadeUp 0.4s 0.15s ease both;
+}
+
+.hoverable:hover {
+  background: var(--hover) !important;
+}
+
+.btn-switch {
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.btn-switch:hover {
+  opacity: 0.8;
+}
