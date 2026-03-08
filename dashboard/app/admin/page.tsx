@@ -471,12 +471,6 @@ function AdminActivityTab({ data, TODAY }: { data: any, TODAY: string }) {
             );
           })}
         </div>
-        {data.daily.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-            <span style={{ fontSize: 10, color: "var(--muted3)" }}>{data.daily[0].date.slice(5)}</span>
-            <span style={{ fontSize: 10, color: "var(--accent)" }}>今天</span>
-          </div>
-        )}
       </div>
 
       <div className="fade-up-1" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: "18px 20px" }}>
