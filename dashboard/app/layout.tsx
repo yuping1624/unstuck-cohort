@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
     title: "12-Week Job Searching Group Dashboard",
@@ -18,6 +19,7 @@ export default function RootLayout({
                 <ThemeProvider>
                     {children}
                 </ThemeProvider>
+                <Analytics />
             </body>
         </html>
     );
