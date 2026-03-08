@@ -452,7 +452,7 @@ function AdminActivityTab({ data, TODAY }: { data: any, TODAY: string }) {
   const max = Math.max(...data.daily.map((d: any) => d.checkin_count), 1);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div className="fade-up" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: "18px 20px" }}>
+      <div className="fade-up" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: "18px 20px" }} data-chart="daily-count">
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>每日打卡人數（過去 28 天）</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 100 }}>
           {data.daily.slice(-28).map((d: any) => {
