@@ -147,3 +147,35 @@ body {
 .btn-switch:hover {
   opacity: 0.8;
 }
+
+/* Admin RWD */
+@media (max-width: 768px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  .admin-today-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-members-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    min-width: 0;
+    padding-right: 24px !important;
+  }
+  .admin-members-scroll-hint {
+    display: block !important;
+  }
+  .admin-members-table > div:first-child {
+    min-width: 640px;
+  }
+}

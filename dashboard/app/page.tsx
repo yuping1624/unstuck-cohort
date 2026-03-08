@@ -11,6 +11,7 @@ type MemberOverview = {
     longest_streak: number;
     total_checkins: number;
     this_week_checkins: number;
+    timezone?: string;
 };
 
 type MemberCheckin = {
@@ -114,14 +115,32 @@ function HomePageContent() {
     }
 
     const { me, checkins, members } = data;
-    const start = new Date("2026-03-09");
-    const elapsed = Date.now() - start.getTime();
-    const week = elapsed < 0 ? 0 : Math.min(Math.floor(elapsed / (7 * 86400000)) + 1, 12);
+    const memberTz = me.timezone || "Asia/Taipei";
+    const TODAY = (() => {
+        try {
+            return new Date().toLocaleDateString("en-CA", { timeZone: memberTz });
+        } catch {
+            return new Date().toISOString().slice(0, 10);
+        }
+    })();
+    const startStr = "2026-03-09";
+    const daysFromStart = Math.round((new Date(TODAY).getTime() - new Date(startStr).getTime()) / 86400000);
+    const week = daysFromStart < 0 ? 0 : Math.min(12, Math.floor(daysFromStart / 7) + 1);
     const weekPct = (week / 12) * 100;
     const streakPct = Math.min((me.current_streak / 21) * 100, 100);
-    const TODAY = new Date().toISOString().slice(0, 10);
 
-    const rankedMembers = members.filter((m: any) => (m.total_checkins || 0) > 0);
+    function getWeekForMember(m: { timezone?: string }) {
+        const tz = m.timezone || "Asia/Taipei";
+        try {
+            const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+            const d = Math.round((new Date(todayStr).getTime() - new Date(startStr).getTime()) / 86400000);
+            return d < 0 ? 0 : Math.min(12, Math.floor(d / 7) + 1);
+        } catch {
+            return week;
+        }
+    }
+    const sameWeekMembers = members.filter((m: any) => getWeekForMember(m) === week);
+    const rankedMembers = sameWeekMembers.filter((m: any) => (m.total_checkins || 0) > 0);
     const sortedMembers = [...rankedMembers].sort((a: any, b: any) => b.current_streak - a.current_streak);
     const rankByMemberId: Record<string, number> = {};
     sortedMembers.forEach((m: any, i: number) => {

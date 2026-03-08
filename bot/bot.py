@@ -256,7 +256,7 @@ def get_ai_reply(content: str, display_name: str, streak: int) -> str:
 
     try:
         response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             contents=prompt,
         )
         # 部分情況可能不會有 text，做個保險
@@ -316,7 +316,7 @@ async def on_message(message: discord.Message):
 
                     prompt = f"你是一個溫暖、真誠的求職群組陪伴助手。成員 {message.author.display_name} 在群組裡對你說：\n「{content}」\n\n{lang_instruction} {correction_note}\n請用友善、像朋友般的語氣給予簡短回覆（控制在 30-60 字以內），不要加太多 Emoji。"
                     response = await asyncio.to_thread(lambda: ai_client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model="gemini-2.5-flash-lite",
                         contents=prompt
                     ).text)
                     await message.reply(response)
@@ -665,7 +665,7 @@ async def weekly_summary():
 
         try:
             summary = await asyncio.to_thread(lambda: ai_client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=summary_prompt
             ).text)
 

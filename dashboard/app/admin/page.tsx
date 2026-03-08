@@ -3,6 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { Avatar, WeekDots, CheckinModal, ViewToggle } from "@/components/TemplateComponents";
 
+const MOBILE_BREAKPOINT = 768;
+
+function useMediaQuery(maxWidth: number) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    setMatches(mql.matches);
+    const handler = () => setMatches(mql.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [maxWidth]);
+  return matches;
+}
+
 export default function AdminDashboard() {
   const [authorized, setAuthorized] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -15,9 +29,12 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState("today");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
 
   const load = useCallback(() => {
-    fetch("/api/stats")
+    fetch(`/api/stats?t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((res) => {
         setData(res);
@@ -174,45 +191,69 @@ export default function AdminDashboard() {
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--app-bg)", color: "var(--text)" }}>
       <ViewToggle currentView="admin" />
 
-      <div style={{ width: 200, background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", padding: "20px 0", position: "fixed", height: "100vh", display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "0 16px 20px", borderBottom: "1px solid var(--border)", marginBottom: 12 }}>
-          <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, var(--accent), #7c3aed)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginBottom: 8 }}>🎯</div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>求職 12 週</div>
-          <div style={{ fontSize: 10, color: "var(--muted3)", fontFamily: "'DM Mono', monospace", marginTop: 2 }}>ADMIN PANEL</div>
-        </div>
-        {[
-          ["today", "📋", "今日打卡"],
-          ["members", "👥", "成員管理"],
-          ["activity", "📊", "活躍統計"],
-          ["insights", "✨", "AI 洞察"],
-        ].map(([id, icon, label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "8px 16px", margin: "1px 8px", borderRadius: 8,
-            border: "none", cursor: "pointer", fontSize: 12, fontFamily: "inherit",
-            background: tab === id ? "var(--accent-soft)" : "transparent",
-            color: tab === id ? "var(--accent)" : "var(--muted2)",
-            fontWeight: tab === id ? 600 : 400,
-            transition: "all 0.15s",
-          }}>
-            <span style={{ fontSize: 14 }}>{icon}</span> {label}
-            {id === "today" && notCheckedInCount > 0 && (
-              <span style={{ marginLeft: "auto", background: "var(--danger)", color: "white", fontSize: 9, padding: "1px 5px", borderRadius: 10, fontWeight: 700 }}>{notCheckedInCount}</span>
-            )}
+      {isMobile && sidebarOpen && (
+        <div role="button" tabIndex={0} aria-label="關閉選單" onClick={() => setSidebarOpen(false)} onKeyDown={(e) => { if (e.key === "Escape") setSidebarOpen(false); }} style={{ position: "fixed", inset: 0, background: "var(--overlay)", zIndex: 15 }} />
+      )}
+      <div style={{ width: isMobile ? 260 : (sidebarCollapsed ? 48 : 200), background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", padding: "20px 0", position: "fixed", height: "100vh", display: "flex", flexDirection: "column", transition: "width 0.2s ease, transform 0.25s ease", zIndex: 20, transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : undefined }}>
+        <div style={{ padding: (sidebarCollapsed && !isMobile) ? "12px 10px" : "0 16px 20px", borderBottom: "1px solid var(--border)", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: (sidebarCollapsed && !isMobile) ? "center" : "space-between", gap: 8 }}>
+          {(!sidebarCollapsed || isMobile) && (
+            <>
+              <div>
+                <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, var(--accent), #7c3aed)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginBottom: 8 }}>🎯</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>求職 12 週</div>
+                <div style={{ fontSize: 10, color: "var(--muted3)", fontFamily: "'DM Mono', monospace", marginTop: 2 }}>ADMIN PANEL</div>
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => isMobile ? setSidebarOpen(false) : setSidebarCollapsed(c => !c)}
+            title={isMobile ? "關閉選單" : (sidebarCollapsed ? "展開側欄" : "收合側欄")}
+            style={{ flexShrink: 0, width: 28, height: 28, border: "none", borderRadius: 6, background: "var(--card-bg)", color: "var(--muted2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}
+          >
+            {isMobile ? "✕" : (sidebarCollapsed ? "▶" : "◀")}
           </button>
-        ))}
-        <div style={{ margin: "auto 12px 0", background: "var(--accent-soft)", border: "1px solid var(--accent-border)", borderRadius: 12, padding: 12 }}>
-          <div style={{ fontSize: 30, fontWeight: 700, fontFamily: "'DM Mono', monospace", color: "var(--accent)", lineHeight: 1 }}>W{week}</div>
-          <div style={{ fontSize: 10, color: "var(--muted3)", marginTop: 4 }}>{week === 0 ? "第 0 週（3/9 起第 1 週）" : `第 ${week} / 12 週`}</div>
-          <div style={{ height: 3, background: "var(--border)", borderRadius: 2, marginTop: 8 }}>
-            <div style={{ height: 3, background: "linear-gradient(90deg, var(--accent), #7c3aed)", borderRadius: 2, width: `${week === 0 ? 0 : (week / 12) * 100}%`, transition: "width 0.3s" }} />
-          </div>
         </div>
+        {(!sidebarCollapsed || isMobile) && (
+          <>
+            {[
+              ["today", "📋", "今日打卡"],
+              ["members", "👥", "成員管理"],
+              ["activity", "📊", "活躍統計"],
+              ["insights", "✨", "AI 洞察"],
+            ].map(([id, icon, label]) => (
+              <button key={id} onClick={() => { setTab(id); if (isMobile) setSidebarOpen(false); }} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 16px", margin: "1px 8px", borderRadius: 8,
+                border: "none", cursor: "pointer", fontSize: 12, fontFamily: "inherit",
+                background: tab === id ? "var(--accent-soft)" : "transparent",
+                color: tab === id ? "var(--accent)" : "var(--muted2)",
+                fontWeight: tab === id ? 600 : 400,
+                transition: "all 0.15s",
+              }}>
+                <span style={{ fontSize: 14 }}>{icon}</span> {label}
+                {id === "today" && notCheckedInCount > 0 && (
+                  <span style={{ marginLeft: "auto", background: "var(--danger)", color: "white", fontSize: 9, padding: "1px 5px", borderRadius: 10, fontWeight: 700 }}>{notCheckedInCount}</span>
+                )}
+              </button>
+            ))}
+            <div style={{ margin: "auto 12px 0", background: "var(--accent-soft)", border: "1px solid var(--accent-border)", borderRadius: 12, padding: 12 }}>
+              <div style={{ fontSize: 30, fontWeight: 700, fontFamily: "'DM Mono', monospace", color: "var(--accent)", lineHeight: 1 }}>W{week}</div>
+              <div style={{ fontSize: 10, color: "var(--muted3)", marginTop: 4 }}>{week === 0 ? "第 0 週（3/9 起第 1 週）" : `第 ${week} / 12 週`}</div>
+              <div style={{ height: 3, background: "var(--border)", borderRadius: 2, marginTop: 8 }}>
+                <div style={{ height: 3, background: "linear-gradient(90deg, var(--accent), #7c3aed)", borderRadius: 2, width: `${week === 0 ? 0 : (week / 12) * 100}%`, transition: "width 0.3s" }} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div style={{ marginLeft: 200, flex: 1, padding: "56px 28px 24px" }}>
+      <div style={{ marginLeft: isMobile ? 0 : (sidebarCollapsed ? 48 : 200), flex: 1, padding: isMobile ? "52px 12px 20px" : "56px 28px 24px", transition: "margin-left 0.2s ease", minWidth: 0, overflowX: "hidden" }}>
+        {isMobile && (
+          <button type="button" onClick={() => setSidebarOpen(true)} title="開啟選單" style={{ position: "absolute", top: 12, left: 12, width: 40, height: 40, border: "none", borderRadius: 10, background: "var(--card-bg)", color: "var(--muted2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>☰</button>
+        )}
         {lastUpdated && (
-          <div style={{ fontSize: 11, color: "var(--muted2)", textAlign: "right", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+          <div style={{ fontSize: 11, color: "var(--muted2)", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
             <span>最後更新：{lastUpdated.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}</span>
             <button
               type="button"
@@ -227,7 +268,7 @@ export default function AdminDashboard() {
             </button>
           </div>
         )}
-        <div className="fade-up" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
+        <div className="fade-up admin-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
           {[
             { label: "今日打卡", val: todayCount, sub: `/ ${totalMembers} 人`, color: "var(--accent)", border: "var(--accent)" },
             { label: "今日未打卡", val: notCheckedInCount, sub: "人，需關注", color: "var(--danger)", border: "var(--danger)" },
@@ -258,14 +299,14 @@ export default function AdminDashboard() {
 
 function AdminTodayTab({ data, TODAY, notCheckedInMembers, notCheckedInThisWeek, onSelectCheckin }: { data: any, TODAY: string, notCheckedInMembers: any[], notCheckedInThisWeek: any[], onSelectCheckin: (c: any) => void }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }}>
-      <div>
-        <div className="fade-up" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+    <div className="admin-today-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 260px", gap: 16 }}>
+      <div style={{ minWidth: 0 }}>
+        <div className="fade-up" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", minWidth: 0 }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>今日打卡紀錄</span>
             <span style={{ fontSize: 11, color: "var(--muted2)" }}>{data.today.length} 則</span>
           </div>
-          <div style={{ maxHeight: 520, overflowY: "auto" }}>
+          <div style={{ maxHeight: 520, overflowY: "auto", overflowX: "hidden" }}>
             {data.today.map((c: any, i: number) => (
               <div key={c.id} className="hoverable" onClick={() => onSelectCheckin(c)} style={{
                 display: "flex", gap: 12, padding: "12px 18px",
@@ -275,10 +316,10 @@ function AdminTodayTab({ data, TODAY, notCheckedInMembers, notCheckedInThisWeek,
               }}>
                 <Avatar name={c.display_name} size={34} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{c.display_name}</span>
-                    {c.current_streak > 1 && <span style={{ fontSize: 11, color: "var(--warning)" }}>🔥{c.current_streak}</span>}
-                    <span style={{ fontSize: 10, color: "var(--muted3)", marginLeft: "auto", fontFamily: "'DM Mono', monospace" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{c.display_name}</span>
+                    {c.current_streak > 1 && <span style={{ fontSize: 11, color: "var(--warning)", flexShrink: 0 }}>🔥{c.current_streak}</span>}
+                    <span style={{ fontSize: 10, color: "var(--muted3)", marginLeft: "auto", fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>
                       {new Date(c.created_at || c.date).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
@@ -364,8 +405,10 @@ function AdminMembersTab({ data, TODAY }: { data: any, TODAY: string }) {
       )
     : sorted;
 
+  const memberGridCols = "32px 120px 80px 80px 80px 120px";
+
   return (
-    <div className="fade-up" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+    <div className="fade-up" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", minWidth: 0 }}>
       <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>成員總覽</span>
         <span style={{ fontSize: 10, color: "var(--muted3)" }}>全部成員（含未打卡）</span>
@@ -397,10 +440,15 @@ function AdminMembersTab({ data, TODAY }: { data: any, TODAY: string }) {
           />
         </div>
       </div>
-      <div>
-        <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 80px 80px 80px 120px", gap: 8, padding: "8px 18px", borderBottom: "1px solid var(--card-bg-alt)" }}>
+      <div className="admin-members-scroll-hint" style={{ padding: "6px 18px", fontSize: 11, color: "var(--muted3)", display: "none" }}>← 可左右滑動查看完整欄位</div>
+      <div
+        className="admin-members-scroll admin-members-table"
+        style={{ minWidth: 520, paddingRight: 32 }}
+      >
+        <div style={{ minWidth: 640 }}>
+        <div style={{ display: "grid", gridTemplateColumns: memberGridCols, gap: "8px 8px", padding: "8px 18px", borderBottom: "1px solid var(--card-bg-alt)", alignItems: "center", minWidth: 588 }}>
           {["", "成員", "本週", "累計", "連續", "近 7 天"].map((h, i) => (
-            <div key={i} style={{ fontSize: 10, color: "var(--muted3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</div>
+            <div key={i} style={{ fontSize: 10, color: "var(--muted3)", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: i >= 2 ? "right" : "left" }}>{h}</div>
           ))}
         </div>
         {filtered.length === 0 ? (
@@ -415,34 +463,44 @@ function AdminMembersTab({ data, TODAY }: { data: any, TODAY: string }) {
           return (
             <div
               key={m.id}
-              className="hoverable"
+              className="hoverable admin-members-row"
+              role="row"
               onClick={() => {
                 if (m.discord_id) {
                   window.open(`/?discord_id=${encodeURIComponent(m.discord_id)}`, "_blank");
                 }
               }}
               style={{
-              display: "grid", gridTemplateColumns: "32px 1fr 80px 80px 80px 120px",
-              gap: 8, padding: "11px 18px", alignItems: "center", cursor: "pointer",
-              borderBottom: i < filtered.length - 1 ? "1px solid var(--border)" : "none",
-              animation: `fadeUp 0.3s ${i * 0.04}s ease both`,
-            }}>
+                display: "grid",
+                gridTemplateColumns: memberGridCols,
+                gap: "8px 8px",
+                padding: "11px 18px",
+                alignItems: "center",
+                cursor: "pointer",
+                borderBottom: i < filtered.length - 1 ? "1px solid var(--border)" : "none",
+                animation: `fadeUp 0.3s ${i * 0.04}s ease both`,
+                minWidth: 588,
+              }}
+            >
               <span style={{ fontSize: 13, color: "var(--muted3)", fontFamily: "'DM Mono', monospace" }}>
                 {rankDisplay}
               </span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                 <Avatar name={m.display_name} size={26} />
-                <span style={{ fontSize: 13 }}>{m.display_name}</span>
-                {checkedToday && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", boxShadow: "0 0 5px var(--success)", display: "inline-block" }} />}
+                <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.display_name}</span>
+                {checkedToday && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", boxShadow: "0 0 5px var(--success)", flexShrink: 0 }} />}
               </div>
-              <span style={{ fontSize: 13, color: "var(--accent)", fontFamily: "'DM Mono', monospace" }}>{m.this_week_checkins}</span>
-              <span style={{ fontSize: 13, color: "var(--muted)", fontFamily: "'DM Mono', monospace" }}>{m.total_checkins}</span>
-              <span style={{ fontSize: 13, color: "var(--warning)", fontFamily: "'DM Mono', monospace" }}>{m.current_streak}🔥</span>
-              <WeekDots member={m} today={TODAY} />
+              <span style={{ fontSize: 13, color: "var(--accent)", fontFamily: "'DM Mono', monospace", textAlign: "right" }}>{m.this_week_checkins}</span>
+              <span style={{ fontSize: 13, color: "var(--muted)", fontFamily: "'DM Mono', monospace", textAlign: "right" }}>{m.total_checkins}</span>
+              <span style={{ fontSize: 13, color: "var(--warning)", fontFamily: "'DM Mono', monospace", textAlign: "right" }}>{m.current_streak}🔥</span>
+              <div style={{ minWidth: 0 }}>
+                <WeekDots member={m} today={TODAY} />
+              </div>
             </div>
           );
         })
         )}
+        </div>
       </div>
     </div>
   );
