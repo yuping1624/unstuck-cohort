@@ -210,6 +210,9 @@ def recompute_streaks():
             "last_checkin_date": last_date,
         }).eq("id", mid).execute()
     print("recompute_streaks done.")
+
+
+def _is_mainly_english(text: str) -> bool:
     """簡單判斷內容是否主要為英文（用於是否啟用英文糾正提示）"""
     cleaned = "".join(c for c in text if c.isalpha())
     if not cleaned:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Avatar, WeekDots, CheckinModal, ViewToggle } from "@/components/TemplateComponents";
 
@@ -29,6 +29,18 @@ type MemberApiResponse = {
 };
 
 export default function HomePage() {
+    return (
+        <Suspense fallback={
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--app-bg)", color: "var(--text)" }}>
+                Loading...
+            </div>
+        }>
+            <HomePageContent />
+        </Suspense>
+    );
+}
+
+function HomePageContent() {
     const searchParams = useSearchParams();
     const discordId = searchParams.get("discord_id");
     const [data, setData] = useState<MemberApiResponse | null>(null);
