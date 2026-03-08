@@ -6,6 +6,7 @@
 import os
 import re
 import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 import discord
 from discord.ext import commands, tasks
@@ -681,6 +682,21 @@ async def weekly_summary():
 
 
 # ─────────────────────────────────────────
-# 啟動
+# 啟動（遇 429 速率限制時等待後重試，避免 Railway 重啟循環）
 # ─────────────────────────────────────────
-bot.run(DISCORD_TOKEN)
+def run_bot():
+    max_retries = 5
+    wait_seconds = 60
+    for attempt in range(max_retries):
+        try:
+            bot.run(DISCORD_TOKEN)
+            return
+        except discord.errors.HTTPException as e:
+            if e.status == 429 and attempt < max_retries - 1:
+                print(f"Discord 429 速率限制，{wait_seconds} 秒後重試 ({attempt + 1}/{max_retries})...")
+                time.sleep(wait_seconds)
+            else:
+                raise
+
+
+run_bot()
