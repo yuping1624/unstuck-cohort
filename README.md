@@ -18,7 +18,11 @@ discord-job-bot/
 │   └── .env.local
 │
 └── supabase/
-    └── schema.sql          # 資料庫建表 SQL
+    ├── schema.sql          # 資料庫建表 SQL
+    └── migrations/         # 增量更新 SQL
+        ├── 001_fix_dashboard_timezone.sql
+        ├── 002_weekly_leaderboard_week_range.sql
+        └── 003_member_goals.sql   # 成員目標欄位（Layer 1 記憶功能）
 ```
 
 ---
@@ -118,6 +122,7 @@ ADMIN_PASSWORD=隨機一組管理員密碼（保護 /admin）
 | `!stats @成員` | 查看指定成員統計 |
 | `!leaderboard` 或 `!lb` | 本週打卡排行榜 |
 | `!me` 或 `!dashboard` | 取得個人 Dashboard 連結（Bot 私訊專屬連結 `/?discord_id=你的ID`，僅能看到自己的打卡） |
+| `!syncgoals` | 【管理員限定】一次性掃描 `weekly-goals` Forum，將所有人的目標 summary 存入 DB（只需執行一次） |
 
 ---
 
@@ -136,11 +141,45 @@ ADMIN_PASSWORD=隨機一組管理員密碼（保護 /admin）
 
 ## 🔮 未來 AI 功能擴充
 
-- [ ] **求職建議**：成員輸入 `!advice` 獲得個人化求職策略
+### 近期規劃
+
+- [x] **打卡記憶（Layer 1）**：AI 回覆時帶入成員的 12 週總目標、當週目標、本週打卡歷史，讓回覆更有連貫性與個人化
+  - `goal_12week_summary`：12 週大方向（2-3 句）
+  - `goal_thread_current`：當週目標列點式摘要（AI 打卡回覆使用）
+  - `goal_thread_history`：所有討論串歷史原文（未來 RAG 使用）
+  - `!syncgoals` 指令：管理員一次性補救歷史資料
+  - 自動同步：有人在 `weekly-goals` Forum 發新帖或回覆時自動更新
+- [ ] **週報私訊**：當週打卡滿 3 次，週一自動私訊 AI 生成的個人化週報（含當週觀察、亮點、下週建議）
+- [ ] **情緒預警**：偵測到低落情緒時通知管理員（`bot-log` 頻道）
+
+### 中期規劃
+
+- [ ] **RAG 歷史打卡檢索（Layer 2）**：在 Layer 1 穩定後加入向量搜尋，讓 AI 回覆更有「真實記憶」
+
+  **技術架構：**
+  | 元件 | 方案 |
+  |------|------|
+  | 向量儲存 | Supabase pgvector（`checkins` 表加 `embedding` 欄位） |
+  | Embedding 模型 | Gemini `text-embedding-004`（免費額度充足） |
+  | 搜尋方式 | cosine similarity，每次打卡時搜最相近的 3 則歷史 |
+
+  **運作邏輯：**
+  - 每次打卡儲存時，同步生成該則打卡的向量 embedding
+  - AI 回覆時，用今天的打卡內容搜尋該成員過去最相似的 3 則打卡
+  - 若偵測到今天情緒低落，優先找出過去**高動力**的打卡當鼓勵素材
+  - 例：成員今天「完全沒動力」→ AI 找出他某天「只是打開電腦結果很有動力」的打卡 → 自然帶入回覆鼓勵他
+
+  **實作步驟（待執行）：**
+  1. Supabase 啟用 pgvector extension
+  2. `checkins` 表加 `embedding vector(768)` 欄位
+  3. 打卡儲存時非同步呼叫 `text-embedding-004` 生成向量
+  4. `get_ai_reply()` 加入向量搜尋，取回 top-3 相似歷史
+  5. 情緒偵測：若今天打卡含負面情緒，改搜高動力歷史打卡
+
+- [ ] **`!advice` 指令**：根據累積打卡內容給個人化求職建議
 - [ ] **履歷 review**：貼上履歷片段，AI 給出優化建議
 - [ ] **面試 Q&A**：模擬面試對話練習
 - [ ] **週報 Email**：自動寄送個人化週報給每個成員
-- [ ] **情緒預警**：連續 3 天情緒低落，自動通知管理員
 
 ---
 
