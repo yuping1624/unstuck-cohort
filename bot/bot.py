@@ -320,7 +320,9 @@ GOAL_SUMMARY_THRESHOLD = 200  # 超過此字數才做 summary，否則存原文
 
 
 def _summarize_12week_goal(raw_text: str, display_name: str) -> str:
-    """將 12 週總目標原文壓縮成 2-3 句，只抓大方向"""
+    """將 12 週總目標原文壓縮成 2-3 句，只抓大方向；短文字直接存原文"""
+    if len(raw_text) <= GOAL_SUMMARY_THRESHOLD:
+        return raw_text
     prompt = f"""以下是求職群組成員 {display_name} 寫的 12 週目標：
 
 {raw_text}
@@ -696,7 +698,10 @@ async def on_message(message: discord.Message):
         and message.channel.parent.name == GOAL_CHANNEL_NAME
         and message.id == message.channel.id
     ):
-        await _process_goal_message(message)
+        try:
+            await _process_goal_message(message)
+        except Exception as e:
+            print(f"weekly-goals 主帖同步失敗：{e}")
         return
 
     # weekly-goals 討論串：帖子內的後續回覆
@@ -842,7 +847,10 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
         and after.channel.parent.name == GOAL_CHANNEL_NAME
         and after.id == after.channel.id
     ):
-        await _process_goal_message(after)
+        try:
+            await _process_goal_message(after)
+        except Exception as e:
+            print(f"weekly-goals 主帖編輯同步失敗：{e}")
         return
 
     # weekly-goals 討論串編輯 → 重新掃描整條討論串
@@ -908,7 +916,7 @@ async def daily_reminder():
     # 篩出「現在剛好是當地 21:xx」的成員
     members_to_check = [
         m for m in all_members
-        if now_utc.astimezone(ZoneInfo(m.get("timezone", "Asia/Taipei"))).hour == 21
+        if now_utc.astimezone(ZoneInfo(m.get("timezone") or "Asia/Taipei")).hour == 21
     ]
 
     if not members_to_check:
@@ -918,7 +926,7 @@ async def daily_reminder():
     missing = []
     for m in members_to_check:
         local_today = now_utc.astimezone(
-            ZoneInfo(m.get("timezone", "Asia/Taipei"))
+            ZoneInfo(m.get("timezone") or "Asia/Taipei")
         ).strftime("%Y-%m-%d")
 
         already = supabase.table("checkins") \
