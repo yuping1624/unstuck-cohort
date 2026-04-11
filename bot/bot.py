@@ -759,6 +759,11 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
         return
 
+    # 回覆他人訊息不觸發打卡（用 Reply 按鈕留言給別人時不應記錄）
+    if message.reference is not None:
+        await bot.process_commands(message)
+        return
+
     # 只處理打卡頻道
     if message.channel.name not in CHECKIN_CHANNELS:
         await bot.process_commands(message)
