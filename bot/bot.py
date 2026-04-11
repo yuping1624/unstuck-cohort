@@ -755,7 +755,21 @@ async def on_message(message: discord.Message):
         return
 
     # 討論串訊息不觸發打卡（有人在別人打卡底下回覆時不應記錄）
-    if isinstance(message.channel, discord.Thread):
+    # 用 isinstance 之外也檢查 channel type，避免 Thread 未 cache 時回傳 PartialMessageable 而漏判
+    _thread_types = {
+        discord.ChannelType.public_thread,
+        discord.ChannelType.private_thread,
+        discord.ChannelType.news_thread,
+    }
+    is_thread = isinstance(message.channel, discord.Thread) or \
+                getattr(message.channel, 'type', None) in _thread_types
+    print(f"[debug] channel={message.channel!r} type={getattr(message.channel,'type',None)} is_thread={is_thread}")
+    if is_thread:
+        await bot.process_commands(message)
+        return
+
+    # 回覆他人訊息不觸發打卡（用 Reply 按鈕留言給別人時不應記錄）
+    if message.reference is not None:
         await bot.process_commands(message)
         return
 
