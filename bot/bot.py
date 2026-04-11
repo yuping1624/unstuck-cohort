@@ -725,6 +725,11 @@ async def on_message(message: discord.Message):
 
     # ── 以下是原本的 on_message 邏輯 ──
 
+    # 打卡頻道裡的 reply 訊息一律忽略（包含 reply bot 訊息時 Discord 自動帶的 @mention）
+    if message.reference is not None and message.channel.name in CHECKIN_CHANNELS:
+        await bot.process_commands(message)
+        return
+
     # 如果 Tag 了機器人：若內容是指令（! 開頭）先執行指令，否則才當聊天
     if bot.user in message.mentions:
         content = message.content.replace(f'<@{bot.user.id}>', '').strip()
