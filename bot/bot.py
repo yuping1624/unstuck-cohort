@@ -673,6 +673,149 @@ async def syncgoals(ctx):
 
 
 # ─────────────────────────────────────────
+# 週報功能
+# ─────────────────────────────────────────
+def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str,
+                            checkins: list[dict], language: str = "zh") -> str:
+    """Calls Gemini to produce a personalised weekly DM report."""
+    checkin_lines = "\n".join(
+        f"- [{c['date']}] {c['content'][:120]}" for c in checkins
+    ) or "(no check-ins this week)"
+
+    prompt = f"""You are a career coach for a 12-week job-search accountability group.
+
+Member: {display_name}
+12-week goal: {goal_12week or '(not set)'}
+This week's focus: {goal_thread or '(not set)'}
+Check-ins this week:
+{checkin_lines}
+
+Step 1 (internal, do NOT output): Diagnose the member's primary pain point:
+  A = Career strategy unclear (scattered job search, no target role/company)
+  B = Productivity / energy problem (procrastination, inconsistent effort)
+  C = Mental resilience issue (anxiety, self-doubt, fear of rejection)
+  D = Steady progress, just needs encouragement
+
+Step 2: Write a brief personal weekly report with exactly these three sections.
+Use the SAME language as the member's check-ins (Traditional Chinese if Chinese, English if English).
+
+Format (no greeting, no sign-off, use the exact section headers below):
+
+這週你做到了 / What you accomplished this week:
+<1-2 sentences affirming concrete actions they took>
+
+給你的洞見 / Insight for you:
+<1-2 sentences of honest, specific coaching based on the diagnosed pain type — not generic praise>
+
+下週一個行動 / One action for next week:
+<1 specific, small, achievable step tied to their 12-week goal>
+
+Total length: 150-200 Chinese characters OR 120-160 English words. Be warm but direct."""
+
+    return ai_client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=prompt
+    ).text.strip()
+
+
+async def send_weekly_report_to_member(member_row: dict, guild: discord.Guild,
+                                        force: bool = False) -> bool:
+    """Send weekly DM report to one member. Returns True if sent successfully."""
+    discord_id = member_row.get("discord_id")
+    if not discord_id:
+        return False
+
+    tz_str = member_row.get("timezone") or "Asia/Taipei"
+    now_local = datetime.now(ZoneInfo(tz_str))
+
+    # Only send on Monday 20:xx unless forced
+    if not force and not (now_local.weekday() == 0 and now_local.hour == 20):
+        return False
+
+    # Fetch last 7 days of check-ins
+    week_ago = (now_local - timedelta(days=7)).strftime("%Y-%m-%d")
+    checkins_res = supabase.table("checkins") \
+        .select("date, content") \
+        .eq("member_id", member_row["id"]) \
+        .gte("date", week_ago) \
+        .order("date") \
+        .execute()
+    checkins = checkins_res.data or []
+
+    # Skip if fewer than 3 check-ins and no goal (unless forced)
+    has_goal = bool(member_row.get("goal_12week_summary") or member_row.get("goal_thread_current"))
+    if not force and (len(checkins) < 3 or not has_goal):
+        return False
+
+    try:
+        report_text = await asyncio.to_thread(
+            generate_weekly_report,
+            member_row.get("display_name", "Member"),
+            member_row.get("goal_12week_summary", ""),
+            member_row.get("goal_thread_current", ""),
+            checkins,
+        )
+    except Exception as e:
+        print(f"週報 AI 生成失敗 ({discord_id}): {e}")
+        return False
+
+    try:
+        discord_member = guild.get_member(int(discord_id)) or await guild.fetch_member(int(discord_id))
+        await discord_member.send(
+            f"📬 **你的本週個人回顧 / Your Weekly Report**\n\n{report_text}"
+        )
+        return True
+    except discord.Forbidden:
+        print(f"週報 DM 被拒絕（對方關閉 DM）: {discord_id}")
+        return False
+    except Exception as e:
+        print(f"週報發送失敗 ({discord_id}): {e}")
+        return False
+
+
+@tasks.loop(hours=1)
+async def weekly_report():
+    """Fires every hour; sends Monday-8pm per-timezone DM report to eligible members."""
+    now_utc = datetime.now(timezone.utc)
+
+    all_members = supabase.table("members") \
+        .select("id, discord_id, display_name, timezone, goal_12week_summary, goal_thread_current") \
+        .execute().data
+
+    for guild in bot.guilds:
+        for m in all_members:
+            tz_str = m.get("timezone") or "Asia/Taipei"
+            local = now_utc.astimezone(ZoneInfo(tz_str))
+            if local.weekday() == 0 and local.hour == 20:
+                await send_weekly_report_to_member(m, guild)
+
+
+@bot.command(name="testreport")
+@commands.has_permissions(administrator=True)
+async def testreport(ctx, member: discord.Member = None):
+    """[Admin] Send a test weekly report DM. Mention a member or leave blank for yourself."""
+    target = member or ctx.author
+    discord_id = str(target.id)
+
+    member_res = supabase.table("members") \
+        .select("id, discord_id, display_name, timezone, goal_12week_summary, goal_thread_current") \
+        .eq("discord_id", discord_id) \
+        .execute()
+
+    if not member_res.data:
+        await ctx.reply(f"找不到成員 {target.display_name} 的資料。")
+        return
+
+    await ctx.reply(f"正在生成並發送週報給 {target.display_name}，請稍候...")
+    success = await send_weekly_report_to_member(member_res.data[0], ctx.guild, force=True)
+
+    if success:
+        await ctx.reply(f"✅ 週報已私訊給 {target.display_name}！")
+    else:
+        await ctx.reply(f"❌ 發送失敗，可能是對方關閉了 DM，或資料不足。請查看 bot log。")
+
+
+# ─────────────────────────────────────────
 # 事件：啟動
 # ─────────────────────────────────────────
 @bot.event
@@ -680,6 +823,7 @@ async def on_ready():
     print(f"✅ Bot 上線：{bot.user}")
     weekly_summary.start()
     daily_reminder.start()
+    weekly_report.start()
 
 
 # ─────────────────────────────────────────
