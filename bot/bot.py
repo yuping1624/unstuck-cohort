@@ -957,7 +957,7 @@ async def daily_reminder():
 
     # 發提醒
     for guild in bot.guilds:
-        channel = discord.utils.get(guild.channels, name="每日打卡")
+        channel = discord.utils.get(guild.channels, name="daily-micro-action")
         if not channel:
             continue
 
