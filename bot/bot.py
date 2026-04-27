@@ -783,15 +783,15 @@ async def post_report_preview(member_row: dict, guild: discord.Guild,
     if not force and not (now_local.weekday() == 0 and now_local.hour == 20):
         return False
 
-    # Last Monday to last Sunday (complete week before the Monday report fires)
+    # Most recently completed Mon–Sun week, works regardless of what day this runs
     today_date = now_local.date()
-    last_monday = (today_date - timedelta(days=7)).strftime("%Y-%m-%d")
-    last_sunday = (today_date - timedelta(days=1)).strftime("%Y-%m-%d")
+    last_sunday = today_date - timedelta(days=today_date.weekday() + 1)
+    last_monday = last_sunday - timedelta(days=6)
     checkins_res = supabase.table("checkins") \
         .select("date, content") \
         .eq("member_id", member_row["id"]) \
-        .gte("date", last_monday) \
-        .lte("date", last_sunday) \
+        .gte("date", last_monday.strftime("%Y-%m-%d")) \
+        .lte("date", last_sunday.strftime("%Y-%m-%d")) \
         .order("date") \
         .execute()
     checkins = checkins_res.data or []
