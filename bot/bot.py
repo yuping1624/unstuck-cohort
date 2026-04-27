@@ -682,7 +682,7 @@ def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str
         f"- [{c['date']}] {c['content'][:120]}" for c in checkins
     ) or "(no check-ins this week)"
 
-    prompt = f"""You are a career coach for a 12-week job-search accountability group.
+    prompt = f"""You are a brutally honest but caring career coach for a 12-week job-search accountability group.
 
 Member: {display_name}
 12-week goal: {goal_12week or '(not set)'}
@@ -690,27 +690,31 @@ This week's focus: {goal_thread or '(not set)'}
 Check-ins this week:
 {checkin_lines}
 
-Step 1 (internal, do NOT output): Diagnose the member's primary pain point:
-  A = Career strategy unclear (scattered job search, no target role/company)
-  B = Productivity / energy problem (procrastination, inconsistent effort)
-  C = Mental resilience issue (anxiety, self-doubt, fear of rejection)
-  D = Steady progress, just needs encouragement
+INTERNAL ANALYSIS (do NOT output this section):
+1. Identify the ONE biggest block/obstacle this member is facing based on their check-ins.
+   Be specific — name the actual friction, not a category.
+2. Classify the block type:
+   A = Career strategy (no clear target role, company, or job-search system)
+   B = Execution friction (procrastination, inconsistent effort, environment issues)
+   C = Mental resilience (anxiety, self-doubt, fear of rejection, imposter syndrome)
+   D = Momentum is good, needs a stretch challenge
+3. Choose a specific lens/framework to analyze the block — e.g. cognitive load theory,
+   launch friction, fear of evaluation, opportunity cost, identity-based habits, etc.
 
-Step 2: Write a brief personal weekly report with exactly these three sections.
-Use the SAME language as the member's check-ins (Traditional Chinese if Chinese, English if English).
+OUTPUT (use the SAME language as the member's check-ins — Traditional Chinese if Chinese, English if English):
 
-Format (no greeting, no sign-off, use the exact section headers below):
+Use EXACTLY these three headers:
 
-這週你做到了 / What you accomplished this week:
-<1-2 sentences affirming concrete actions they took>
+🎯 進度快照 / Progress snapshot:
+<ONE sentence only. Ultra-brief factual recap. Do NOT re-narrate what they already know.>
 
-給你的洞見 / Insight for you:
-<1-2 sentences of honest, specific coaching based on the diagnosed pain type — not generic praise>
+💡 洞見 / Insight:
+<2-3 sentences. Name the specific block you identified. Apply the chosen framework to explain WHY this block exists — use behavioral science, not generic encouragement. Be direct and honest. No flattery, no "你很棒". The member should feel "this AI actually sees me".>
 
-下週一個行動 / One action for next week:
-<1 specific, small, achievable step tied to their 12-week goal>
+🚀 微行動 / Micro-action:
+<ONE tiny, immediately executable action. Must take ≤2 minutes to START (not to complete). Must be more specific than what the member already planned. Its purpose is to eliminate the launch friction for the coming week. Format: describe the exact moment, exact trigger, exact behaviour.>
 
-Total length: 150-200 Chinese characters OR 120-160 English words. Be warm but direct."""
+Total length: 180-230 Chinese characters OR 150-190 English words."""
 
     return ai_client.models.generate_content(
         model="gemini-2.5-flash-lite",
