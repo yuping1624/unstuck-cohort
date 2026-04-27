@@ -909,7 +909,9 @@ def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str
                             checkins: list[dict]) -> str:
     """Calls Gemini to produce a personalised weekly DM report."""
     checkin_lines = "\n".join(
-        f"- [{c['date']}] {c['content'][:120]}" for c in checkins
+        f"- [{c['date']}] {c['content'][:100]}"
+        + (f" (completed: {', '.join(c['completed_goals'])})" if c.get('completed_goals') else "")
+        for c in checkins
     ) or "(no check-ins this week)"
 
     prompt = f"""You are a brutally honest but deeply caring career coach for a 12-week job-search accountability group.
