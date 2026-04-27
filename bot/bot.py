@@ -1079,7 +1079,7 @@ async def weekly_report():
 @bot.command(name="testreport")
 @commands.has_permissions(administrator=True)
 async def testreport(ctx, member: discord.Member = None):
-    """[Admin] Preview a weekly report with Send/Skip buttons before it goes to the member."""
+    """[Admin] Preview a weekly report for one member (default: yourself)."""
     target = member or ctx.author
     discord_id = str(target.id)
 
@@ -1096,6 +1096,32 @@ async def testreport(ctx, member: discord.Member = None):
     sent = await post_report_preview(member_res.data[0], ctx.guild, ctx.channel, force=True)
     if not sent:
         await ctx.reply("❌ 生成失敗，請查看 bot log。")
+
+
+@bot.command(name="testreports")
+@commands.has_permissions(administrator=True)
+async def testreports(ctx):
+    """[Admin] Preview weekly reports for ALL members — simulates the Monday batch run."""
+    all_members = await asyncio.to_thread(
+        lambda: supabase.table("members")
+        .select("id, discord_id, display_name, timezone, goal_12week_summary, goal_thread_current")
+        .execute().data
+    )
+
+    if not all_members:
+        await ctx.reply("找不到任何成員資料。")
+        return
+
+    await ctx.reply(f"正在為 {len(all_members)} 位成員生成週報預覽，請稍候⋯⋯")
+    success, skipped = 0, 0
+    for m in all_members:
+        sent = await post_report_preview(m, ctx.guild, ctx.channel, force=True)
+        if sent:
+            success += 1
+        else:
+            skipped += 1
+
+    await ctx.reply(f"✅ 完成！產生 {success} 份預覽，跳過 {skipped} 位（無資料或生成失敗）。")
 
 
 # ─────────────────────────────────────────
