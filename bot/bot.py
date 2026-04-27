@@ -676,13 +676,13 @@ async def syncgoals(ctx):
 # 週報功能
 # ─────────────────────────────────────────
 def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str,
-                            checkins: list[dict], language: str = "zh") -> str:
+                            checkins: list[dict]) -> str:
     """Calls Gemini to produce a personalised weekly DM report."""
     checkin_lines = "\n".join(
         f"- [{c['date']}] {c['content'][:120]}" for c in checkins
     ) or "(no check-ins this week)"
 
-    prompt = f"""You are a brutally honest but caring career coach for a 12-week job-search accountability group.
+    prompt = f"""You are a brutally honest but deeply caring career coach for a 12-week job-search accountability group.
 
 Member: {display_name}
 12-week goal: {goal_12week or '(not set)'}
@@ -690,31 +690,45 @@ This week's focus: {goal_thread or '(not set)'}
 Check-ins this week:
 {checkin_lines}
 
-INTERNAL ANALYSIS (do NOT output this section):
-1. Identify the ONE biggest block/obstacle this member is facing based on their check-ins.
-   Be specific — name the actual friction, not a category.
-2. Classify the block type:
-   A = Career strategy (no clear target role, company, or job-search system)
-   B = Execution friction (procrastination, inconsistent effort, environment issues)
-   C = Mental resilience (anxiety, self-doubt, fear of rejection, imposter syndrome)
-   D = Momentum is good, needs a stretch challenge
-3. Choose a specific lens/framework to analyze the block — e.g. cognitive load theory,
-   launch friction, fear of evaluation, opportunity cost, identity-based habits, etc.
+═══════════════════════════════════
+STEP 1 — INTERNAL DIAGNOSIS (do NOT output anything from this step):
+═══════════════════════════════════
 
-OUTPUT (use the SAME language as the member's check-ins — Traditional Chinese if Chinese, English if English):
+A. Identify the ONE specific block this member faces. Be precise:
+   ✗ "procrastination"  →  ✓ "hasn't sent any applications despite planning to for two weeks"
+   ✗ "anxiety"          →  ✓ "avoids reaching out to contacts to escape fear of seeming desperate"
 
-Use EXACTLY these three headers:
+B. Choose the ONE psychological lens that best explains WHY this block persists:
+   • Cognitive Overload — too many competing priorities; working memory is full, execution collapses
+   • Launch Friction — initiation cost feels disproportionately high relative to the perceived reward
+   • Learned Helplessness (Seligman) — repeated setbacks caused withdrawal; "nothing I do matters"
+   • Fear of Evaluation — avoids action to avoid being judged or rejected (approach-avoidance conflict)
+   • Identity Gap (James Clear) — the target role doesn't feel like "who I am yet"; behaviour and identity misaligned
+   • Meaning Deficit (Frankl / Logotherapy) — disconnected from the deeper "why"; job search feels hollow
+   • Progress Blindness (Amabile) — real incremental progress exists but the member cannot perceive it
+   • Execution Fragmentation — right intention, but no reliable time/environment system to convert intent to action
+   • Stoic Control Boundary — energy spent on outcomes (offer, response) rather than process (applications sent, prep quality)
+   • WOOP gap (Oettingen) — visualising success without mentally contrasting the obstacle → false sense of progress
 
-🎯 進度快照 / Progress snapshot:
-<ONE sentence only. Ultra-brief factual recap. Do NOT re-narrate what they already know.>
+C. Decide output language: Traditional Chinese if check-ins are mostly Chinese; English if mostly English.
+
+═══════════════════════════════════
+STEP 2 — OUTPUT (write in the language from Step 1C):
+═══════════════════════════════════
+
+Use EXACTLY these three headers, no greeting, no sign-off:
+
+🎯 進度快照 / Snapshot:
+<ONE sentence. Ultra-brief factual recap. No praise. Member already knows what they did — don't re-narrate it.>
 
 💡 洞見 / Insight:
-<2-3 sentences. Name the specific block you identified. Apply the chosen framework to explain WHY this block exists — use behavioral science, not generic encouragement. Be direct and honest. No flattery, no "你很棒". The member should feel "this AI actually sees me".>
+<2-3 sentences. Name the specific block from Step 1A. Apply the lens from Step 1B to explain the psychology behind it — reference the framework concept by name if helpful (e.g. "launch friction", "learned helplessness", "identity gap"). Be direct and honest. Zero flattery. The member should feel: "this AI sees my real obstacle, not just my surface behaviour".>
 
 🚀 微行動 / Micro-action:
-<ONE tiny, immediately executable action. Must take ≤2 minutes to START (not to complete). Must be more specific than what the member already planned. Its purpose is to eliminate the launch friction for the coming week. Format: describe the exact moment, exact trigger, exact behaviour.>
+<ONE Implementation Intention: "When [specific trigger / time / situation], I will [tiny specific behaviour]."
+Constraints: (1) Starting it takes ≤2 minutes. (2) It must be MORE specific and smaller than anything the member already planned. (3) Its sole purpose is to dissolve the identified block's launch friction — not to complete a project.>
 
-Total length: 180-230 Chinese characters OR 150-190 English words."""
+Total: 180-230 Chinese characters OR 150-190 English words."""
 
     return ai_client.models.generate_content(
         model="gemini-2.5-flash-lite",
@@ -722,9 +736,43 @@ Total length: 180-230 Chinese characters OR 150-190 English words."""
     ).text.strip()
 
 
-async def send_weekly_report_to_member(member_row: dict, guild: discord.Guild,
-                                        force: bool = False) -> bool:
-    """Send weekly DM report to one member. Returns True if sent successfully."""
+class ReportApprovalView(discord.ui.View):
+    """Approval buttons posted to admin channel before DM-ing the member."""
+
+    def __init__(self, discord_id: str, report_text: str, display_name: str):
+        super().__init__(timeout=86400)  # 24-hour window
+        self.discord_id = discord_id
+        self.report_text = report_text
+        self.display_name = display_name
+
+    @discord.ui.button(label="✅ 發送 DM", style=discord.ButtonStyle.success)
+    async def send_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            member = (interaction.guild.get_member(int(self.discord_id))
+                      or await interaction.guild.fetch_member(int(self.discord_id)))
+            await member.send(
+                f"📬 **你的本週個人回顧 / Your Weekly Report**\n\n{self.report_text}"
+            )
+            for child in self.children:
+                child.disabled = True
+            button.label = "✅ 已發送"
+            await interaction.response.edit_message(view=self)
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ 對方關閉了 DM", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 發送失敗: {e}", ephemeral=True)
+
+    @discord.ui.button(label="🚫 跳過", style=discord.ButtonStyle.secondary)
+    async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(view=self)
+
+
+async def post_report_preview(member_row: dict, guild: discord.Guild,
+                               channel: discord.TextChannel,
+                               force: bool = False) -> bool:
+    """Generate report and post a preview embed with Send/Skip buttons to the given channel."""
     discord_id = member_row.get("discord_id")
     if not discord_id:
         return False
@@ -732,11 +780,9 @@ async def send_weekly_report_to_member(member_row: dict, guild: discord.Guild,
     tz_str = member_row.get("timezone") or "Asia/Taipei"
     now_local = datetime.now(ZoneInfo(tz_str))
 
-    # Only send on Monday 20:xx unless forced
     if not force and not (now_local.weekday() == 0 and now_local.hour == 20):
         return False
 
-    # Fetch last 7 days of check-ins
     week_ago = (now_local - timedelta(days=7)).strftime("%Y-%m-%d")
     checkins_res = supabase.table("checkins") \
         .select("date, content") \
@@ -746,7 +792,6 @@ async def send_weekly_report_to_member(member_row: dict, guild: discord.Guild,
         .execute()
     checkins = checkins_res.data or []
 
-    # Skip if fewer than 3 check-ins and no goal (unless forced)
     has_goal = bool(member_row.get("goal_12week_summary") or member_row.get("goal_thread_current"))
     if not force and (len(checkins) < 3 or not has_goal):
         return False
@@ -763,23 +808,21 @@ async def send_weekly_report_to_member(member_row: dict, guild: discord.Guild,
         print(f"週報 AI 生成失敗 ({discord_id}): {e}")
         return False
 
-    try:
-        discord_member = guild.get_member(int(discord_id)) or await guild.fetch_member(int(discord_id))
-        await discord_member.send(
-            f"📬 **你的本週個人回顧 / Your Weekly Report**\n\n{report_text}"
-        )
-        return True
-    except discord.Forbidden:
-        print(f"週報 DM 被拒絕（對方關閉 DM）: {discord_id}")
-        return False
-    except Exception as e:
-        print(f"週報發送失敗 ({discord_id}): {e}")
-        return False
+    embed = discord.Embed(
+        title=f"📬 週報預覽 — {member_row.get('display_name', discord_id)}",
+        description=report_text,
+        color=0x7c3aed,
+    )
+    embed.set_footer(text=f"本週打卡 {len(checkins)} 次 · 確認後點「發送 DM」")
+
+    view = ReportApprovalView(discord_id, report_text, member_row.get("display_name", ""))
+    await channel.send(embed=embed, view=view)
+    return True
 
 
 @tasks.loop(hours=1)
 async def weekly_report():
-    """Fires every hour; sends Monday-8pm per-timezone DM report to eligible members."""
+    """Every Monday 8pm (per-timezone) posts report previews to admin channel for approval."""
     now_utc = datetime.now(timezone.utc)
 
     all_members = supabase.table("members") \
@@ -787,17 +830,20 @@ async def weekly_report():
         .execute().data
 
     for guild in bot.guilds:
+        admin_ch = discord.utils.get(guild.channels, name=ADMIN_CHANNEL_NAME)
+        if not admin_ch:
+            continue
         for m in all_members:
             tz_str = m.get("timezone") or "Asia/Taipei"
             local = now_utc.astimezone(ZoneInfo(tz_str))
             if local.weekday() == 0 and local.hour == 20:
-                await send_weekly_report_to_member(m, guild)
+                await post_report_preview(m, guild, admin_ch)
 
 
 @bot.command(name="testreport")
 @commands.has_permissions(administrator=True)
 async def testreport(ctx, member: discord.Member = None):
-    """[Admin] Send a test weekly report DM. Mention a member or leave blank for yourself."""
+    """[Admin] Preview a weekly report with Send/Skip buttons before it goes to the member."""
     target = member or ctx.author
     discord_id = str(target.id)
 
@@ -810,13 +856,10 @@ async def testreport(ctx, member: discord.Member = None):
         await ctx.reply(f"找不到成員 {target.display_name} 的資料。")
         return
 
-    await ctx.reply(f"正在生成並發送週報給 {target.display_name}，請稍候...")
-    success = await send_weekly_report_to_member(member_res.data[0], ctx.guild, force=True)
-
-    if success:
-        await ctx.reply(f"✅ 週報已私訊給 {target.display_name}！")
-    else:
-        await ctx.reply(f"❌ 發送失敗，可能是對方關閉了 DM，或資料不足。請查看 bot log。")
+    await ctx.reply(f"正在生成 {target.display_name} 的週報預覽，請稍候...")
+    sent = await post_report_preview(member_res.data[0], ctx.guild, ctx.channel, force=True)
+    if not sent:
+        await ctx.reply("❌ 生成失敗，請查看 bot log。")
 
 
 # ─────────────────────────────────────────
