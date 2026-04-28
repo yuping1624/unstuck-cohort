@@ -17,7 +17,7 @@ ai_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 CASES = [
     {
         "id": "flowing_deliberate_pause",
-        "label": "FLOWING — 刻意暫停求職（Hardy-like）",
+        "label": "FLOWING — 刻意暫停求職，等待薪資協商結果",
         "display_name": "Alex",
         "goal_12week": "在三個月內找到產品經理職位",
         "goal_thread": "本週投 5 間公司，完成兩次 coffee chat",
@@ -43,7 +43,7 @@ CASES = [
     },
     {
         "id": "mixed_progress_and_obstacle",
-        "label": "MIXED — 有進展但有真實阻礙（Vicky-like）",
+        "label": "MIXED — 有面試進展但市場焦慮，投遞量不足",
         "display_name": "Carol",
         "goal_12week": "拿到軟體工程師 offer",
         "goal_thread": "本週投 10 間公司，練習英文面試",
@@ -56,7 +56,7 @@ CASES = [
     },
     {
         "id": "pivoting_explicit",
-        "label": "PIVOTING — 明確轉向（Cinie-like）",
+        "label": "PIVOTING — 明確從找全職轉向接案",
         "display_name": "Dana",
         "goal_12week": "找到行銷全職工作",
         "goal_thread": "本週投 5 間行銷職位，更新 LinkedIn",
@@ -69,7 +69,7 @@ CASES = [
     },
     {
         "id": "goal_action_gap",
-        "label": "Goal-Action Gap — check-in 偏離週目標（Robin-like）",
+        "label": "Goal-Action Gap — 忙於教學，未啟動原定的個人品牌目標",
         "display_name": "Evan",
         "goal_12week": "建立個人品牌，每週發 3 篇 Threads",
         "goal_thread": "本週發 3 篇 Threads，開始約兩個 coffee chat",
@@ -82,7 +82,7 @@ CASES = [
     },
     {
         "id": "advanced_stage_flowing",
-        "label": "FLOWING — 進度超前目標（huahua-like）",
+        "label": "FLOWING — 已在積極面試，進度超前準備階段目標",
         "display_name": "Frank",
         "goal_12week": "拿到軟體工程師 offer",
         "goal_thread": "本週刷 10 題 Leetcode，投 5 間公司",
@@ -188,8 +188,8 @@ Total: 180-230 Chinese characters OR 150-190 English words."""
 CRITERIA = [
     ("no_language_mix", "微行動句子是否完全用單一語言（不混用 When/I will 和中文）？"),
     ("no_jargon", "洞見中是否完全沒有出現心理學術語或英文框架名稱（斯多葛、Launch Friction、WOOP、Stoic、Amabile 等）？"),
-    ("active_microaction", "微行動的動詞是否為主動行為（寫、打、發送、完成、開啟並輸入等）？若包含「看」、「閱讀」、「瀏覽」、「查看」、「browse」、「read」、「watch」、「look at」等被動動詞則為 false。"),
-    ("no_prompt_leak", "輸出是否完全沒有出現分析步驟、分類標籤、STEP 1/STEP 2 等內容？"),
+    ("active_microaction", "微行動的核心動詞是否為主動行為？即使加上「快速」、「略」等修飾詞，「閱讀」、「瀏覽」、「看」、「查看」、「browse」、「read」、「watch」、「look at」仍屬被動，應判為 false。只有實際操作行為（寫、打、發送、完成、開啟並輸入、回覆、提交）才算主動。"),
+    ("no_prompt_leak", "輸出是否完全沒有出現分析過程或 prompt 結構的痕跡？具體判斷：若出現 STEP 1/STEP 2、[Compare]、[Classify]、FLOWING/STUCK/MIXED/PIVOTING 等分類標籤本身、或大量條列式分析，則為 false。正常的教練語氣（例如：『你本週的行動著重於…』、『原訂的目標…』）屬於合理表達，不算洩漏，應判為 true。"),
     ("correct_state", "整體語氣和建議是否符合該成員的實際狀態（FLOWING/STUCK/MIXED/PIVOTING/Gap）？"),
 ]
 
