@@ -36,7 +36,7 @@ _STRATEGY_CONFIGS = {
         "instruction": "This person is exhausted. Validate only. No advice, no 'keep going'. 1-2 warm sentences. End with something like 'today, just being here is enough'.",
     },
     "affirm_resilience": {
-        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity. No job-search advice.",
+        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity. No job-search advice. Do NOT end with forward-looking cheer ('keep it up', '繼續保持', 'you'll get there').",
     },
     "reframe_attribution": {
         "instruction": "Signs of learned helplessness. Gently challenge the permanent/global attribution. This setback is specific and temporary, not proof they'll always fail. 2-3 sentences. No toxic positivity.",
@@ -60,13 +60,13 @@ _STRATEGY_CONFIGS = {
         "instruction": "Person is likely avoiding a scary action without realising it. Gently name the avoidance pattern without judgment. 2 sentences max. Don't push to act, don't collude with avoidance.",
     },
     "practical_micro_action": {
-        "instruction": "Execution-blocked but emotionally ready. Give ONE Implementation Intention: 'When [specific trigger], I will [tiny behaviour that takes ≤2 min to start]'. More specific than what they already planned.",
+        "instruction": "Execution-blocked but emotionally ready. Give ONE Implementation Intention: 'When [specific trigger], I will [tiny behaviour that takes ≤2 min to start]'. More specific than what they already planned. End on the micro-action itself — no pep talk, no '加油', no 'you can do it' after.",
     },
     "productive_discomfort": {
         "instruction": "Late-stage comfortable routine (week 9+). Acknowledge consistency (1 sentence). Then ask ONE question inviting a slight stretch. Not harsh, just a gentle nudge.",
     },
     "encourage": {
-        "instruction": "Pick ONE specific thing they wrote and react to it like a thoughtful friend who actually read it — not 'great job', not a summary, not 'you're so hardworking'. A real reaction: a question, a brief observation, a small connection to their goal, or a gentle nudge. 2-3 sentences. FORBIDDEN: restating what they did, empty praise (太棒了/very impressive/非常有心/proud of you), 'keep it up', 'can't wait to see more'.",
+        "instruction": "Pick ONE specific thing they wrote and react to it like a thoughtful friend who actually read it — not 'great job', not a summary, not 'you're so hardworking'. A real reaction: a question, a brief observation, a small connection to their goal, or a gentle nudge. 2-3 sentences. FORBIDDEN: restating what they did, empty praise (太棒了/very impressive/非常有心/proud of you/awesome/that's great), 'keep it up', 'can't wait to see more', '一起加油', '繼續保持'.",
     },
 }
 
@@ -209,8 +209,8 @@ CASES = [
 # ── Criteria ──────────────────────────────────────────────────────────────────
 
 CRITERIA = [
-    ("no_empty_praise", "回覆是否完全沒有空洞稱讚？空洞稱讚包括：太棒了/很棒/非常有心/好厲害/great job/so proud/impressive/keep it up/can't wait to see more/你真的很努力。若出現任何這類詞彙則為 false。"),
-    ("no_restatement", "回覆是否沒有把打卡內容原封不動地複述一遍？例如「看到你今天完成了 X，做了 Y」就是複述，應判為 false。簡短引用某個具體細節來回應則可以，不算複述。"),
+    ("no_empty_praise", "回覆是否完全沒有空洞稱讚或結尾打氣？包括：太棒了/很棒/非常有心/好厲害/great job/so proud/impressive/awesome/that's great/keep it up/can't wait to see more/你真的很努力/繼續保持/一起加油/你可以的/you can do it。若出現任何這類詞彙則為 false。"),
+    ("no_restatement", "回覆是否沒有大量複述打卡內容？注意：『reflect_progress』策略需要先引用成員的感受（如「感覺原地踏步」）再矯正，這是策略需要，不算複述。只有當回覆幾乎只是把打卡內容換句話說、沒有新資訊時，才判為 false。"),
     ("specific_reaction", "回覆是否對打卡內容有具體、真實的回應？例如針對某件事提問、給出觀察、或做出連結。泛泛的「繼續加油」不算具體回應，應判為 false。"),
     ("correct_language", "回覆語言是否與打卡語言一致？中文打卡 → 回覆應為繁體中文；英文打卡 → 回覆應為英文。"),
     ("within_length", "回覆是否在 4 句話以內？"),
