@@ -59,7 +59,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 
 # ─────────────────────────────────────────
@@ -670,6 +670,41 @@ async def deletecheckin(ctx, member: discord.Member = None):
 
 
 # ─────────────────────────────────────────
+# 指令：!help
+# ─────────────────────────────────────────
+@bot.command(name="help")
+async def help_command(ctx):
+    """列出所有可用指令"""
+    is_admin = ctx.author.guild_permissions.administrator
+
+    embed = discord.Embed(title="📖 指令清單", color=0x7c3aed)
+
+    embed.add_field(
+        name="一般成員",
+        value=(
+            "`!stats` — 查看群組整體統計\n"
+            "`!leaderboard` / `!lb` — 本週打卡排行榜\n"
+            "`!me` — 取得你的個人頁面連結（DM 給你）"
+        ),
+        inline=False,
+    )
+
+    if is_admin:
+        embed.add_field(
+            name="管理員限定",
+            value=(
+                "`!deletecheckin [@member]` — 刪除某人今天的打卡（測試用）\n"
+                "`!syncgoals` — 掃描 #weekly-goals，補齊所有人的目標資料\n"
+                "`!testreport [@member]` — 預覽單人週報\n"
+                "`!testreports` — 預覽所有成員週報\n"
+                "`!survey [#頻道]` — 啟動結業問卷（Q3 預設發到 #general-chat）"
+            ),
+            inline=False,
+        )
+
+    await ctx.reply(embed=embed)
+
+
 # 指令：/stats
 # ─────────────────────────────────────────
 @bot.command(name="stats")
@@ -1125,6 +1160,122 @@ async def testreports(ctx):
 
 
 # ─────────────────────────────────────────
+# 問卷功能
+# ─────────────────────────────────────────
+_pending_surveys: dict[str, dict] = {}
+# {discord_id: {"q1": str|None, "member_name": str, "admin_channel_id": int}}
+
+
+class SurveyQ2View(discord.ui.View):
+    def __init__(self, discord_id: str, q1_answer: str, admin_channel_id: int, member_name: str):
+        super().__init__(timeout=86400 * 3)  # 3 days
+        self.discord_id = discord_id
+        self.q1_answer = q1_answer
+        self.admin_channel_id = admin_channel_id
+        self.member_name = member_name
+
+    async def _submit(self, interaction: discord.Interaction, choice: str):
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        admin_ch = bot.get_channel(self.admin_channel_id)
+        if admin_ch:
+            embed = discord.Embed(
+                title=f"📋 問卷回覆 — {self.member_name}",
+                color=0x5865f2,
+            )
+            embed.add_field(
+                name="Q1 這三個月對你幫助最大的是什麼？",
+                value=self.q1_answer or "(未填)",
+                inline=False,
+            )
+            embed.add_field(name="Q2 六月之後你的狀態？", value=choice, inline=False)
+            await admin_ch.send(embed=embed)
+
+        await interaction.followup.send("✅ 謝謝你的回覆！已送出。", ephemeral=True)
+        _pending_surveys.pop(self.discord_id, None)
+
+    @discord.ui.button(label="A. 還是在積極衝刺目標", style=discord.ButtonStyle.primary, row=0)
+    async def choice_a(self, interaction, button):
+        await self._submit(interaction, "A. 還是在積極衝刺目標")
+
+    @discord.ui.button(label="B. 進入比較緩的節奏", style=discord.ButtonStyle.secondary, row=1)
+    async def choice_b(self, interaction, button):
+        await self._submit(interaction, "B. 進入比較緩的節奏")
+
+    @discord.ui.button(label="C. 還不確定", style=discord.ButtonStyle.secondary, row=2)
+    async def choice_c(self, interaction, button):
+        await self._submit(interaction, "C. 還不確定")
+
+    @discord.ui.button(label="D. 可能會暫停一陣子", style=discord.ButtonStyle.danger, row=3)
+    async def choice_d(self, interaction, button):
+        await self._submit(interaction, "D. 可能會暫停一陣子")
+
+
+@bot.command(name="survey")
+@commands.has_permissions(administrator=True)
+async def survey(ctx, public_channel: discord.TextChannel = None):
+    """[Admin] 啟動結業問卷：私訊所有成員 Q1+Q2，並在指定公開頻道發 Q3。
+    用法：!survey 或 !survey #頻道名稱"""
+    q3_channel = public_channel or discord.utils.get(ctx.guild.channels, name="general-chat") or ctx.channel
+    admin_ch = discord.utils.get(ctx.guild.channels, name=ADMIN_CHANNEL_NAME)
+    if not admin_ch:
+        await ctx.reply(f"找不到 #{ADMIN_CHANNEL_NAME} 頻道，請先建立它。")
+        return
+
+    all_members = await asyncio.to_thread(
+        lambda: supabase.table("members")
+        .select("id, discord_id, display_name")
+        .execute().data
+    )
+
+    if not all_members:
+        await ctx.reply("找不到任何成員資料。")
+        return
+
+    await ctx.reply(f"正在發送問卷給 {len(all_members)} 位成員⋯⋯")
+
+    sent, failed = 0, 0
+    for m in all_members:
+        discord_id = m.get("discord_id")
+        if not discord_id:
+            failed += 1
+            continue
+        try:
+            member = ctx.guild.get_member(int(discord_id)) or \
+                     await ctx.guild.fetch_member(int(discord_id))
+            _pending_surveys[discord_id] = {
+                "q1": None,
+                "member_name": member.display_name,
+                "admin_channel_id": admin_ch.id,
+            }
+            await member.send(
+                "👋 嗨！這是求職群組的結業問卷，你的回答只有管理員看得到。\n\n"
+                "**問題一：這三個月對你幫助最大的是什麼？**\n"
+                "直接在這裡回覆就好 💬"
+            )
+            sent += 1
+        except discord.Forbidden:
+            failed += 1
+            print(f"問卷 DM 被拒絕：{discord_id}")
+        except Exception as e:
+            failed += 1
+            print(f"問卷發送失敗 ({discord_id}): {e}")
+
+    await q3_channel.send(
+        "💬 **結業問卷 — 公開討論**\n\n"
+        "**問題三：接下來你最想努力的方向是什麼？**\n"
+        "歡迎在下面留言分享，讓大家互相認識彼此的下一步 🌱"
+    )
+
+    await ctx.reply(
+        f"✅ 問卷發送完成！成功 {sent} 人，失敗 {failed} 人。\n"
+        f"成員的 Q1+Q2 回覆會統一傳到 #{ADMIN_CHANNEL_NAME}，Q3 已發到 #{q3_channel.name}。"
+    )
+
+
+# ─────────────────────────────────────────
 # 事件：啟動
 # ─────────────────────────────────────────
 @bot.event
@@ -1142,6 +1293,25 @@ async def on_ready():
 async def on_message(message: discord.Message):
     # 忽略 bot 自己的訊息
     if message.author.bot:
+        return
+
+    # 問卷 Q1 DM 回覆
+    if isinstance(message.channel, discord.DMChannel):
+        discord_id = str(message.author.id)
+        survey_state = _pending_surveys.get(discord_id)
+        if survey_state and survey_state["q1"] is None:
+            survey_state["q1"] = message.content.strip()
+            await message.channel.send(
+                "謝謝你的分享！✨\n\n"
+                "**問題二：六月之後你的狀態大概會是什麼？**\n"
+                "請點選下方按鈕：",
+                view=SurveyQ2View(
+                    discord_id,
+                    survey_state["q1"],
+                    survey_state["admin_channel_id"],
+                    survey_state["member_name"],
+                ),
+            )
         return
 
     # weekly-goals（Forum 頻道）：新帖子第一則訊息 = 主目標；ID 與 thread ID 相同
