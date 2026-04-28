@@ -40,6 +40,9 @@ ENABLE_ENGLISH_CORRECTION = True
 # 管理員頻道（bot 發送洞察報告用）
 ADMIN_CHANNEL_NAME = "bot-log"
 
+# 不發每日提醒的成員（助教/觀察者角色）
+REMINDER_EXCLUDED = {"680760447972147247", "214883164009529344"}  # Zoe-Yeh, Trapper
+
 # Dashboard 網址（選填，用於 !me 產生專屬連結，例如 https://xxx.vercel.app）
 DASHBOARD_URL = (os.environ.get("DASHBOARD_URL") or "").strip().rstrip("/")
 
@@ -1608,10 +1611,11 @@ async def daily_reminder():
         .select("id, discord_id, display_name, timezone") \
         .execute().data
 
-    # 篩出「現在剛好是當地 21:xx」的成員
+    # 篩出「現在剛好是當地 21:xx」的成員（排除助教/觀察者）
     members_to_check = [
         m for m in all_members
         if now_utc.astimezone(ZoneInfo(m.get("timezone") or "Asia/Taipei")).hour == 21
+        and str(m.get("discord_id")) not in REMINDER_EXCLUDED
     ]
 
     if not members_to_check:
