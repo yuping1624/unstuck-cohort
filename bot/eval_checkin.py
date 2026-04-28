@@ -36,7 +36,7 @@ _STRATEGY_CONFIGS = {
         "instruction": "This person is exhausted. Validate only. No advice, no 'keep going'. 1-2 warm sentences. End with something like 'today, just being here is enough'.",
     },
     "affirm_resilience": {
-        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity. No job-search advice. Do NOT end with forward-looking cheer ('keep it up', '繼續保持', 'you'll get there').",
+        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity with a statement like 'this is who you are'. No job-search advice. Do NOT end with any forward-looking suggestion starting with 繼續/keep/continue/你就會/you'll.",
     },
     "reframe_attribution": {
         "instruction": "Signs of learned helplessness. Gently challenge the permanent/global attribution. This setback is specific and temporary, not proof they'll always fail. 2-3 sentences. No toxic positivity.",
@@ -209,7 +209,7 @@ CASES = [
 # ── Criteria ──────────────────────────────────────────────────────────────────
 
 CRITERIA = [
-    ("no_empty_praise", "回覆是否完全沒有空洞稱讚或結尾打氣？包括：太棒了/很棒/非常有心/好厲害/great job/so proud/impressive/awesome/that's great/keep it up/can't wait to see more/你真的很努力/繼續保持/一起加油/你可以的/you can do it。若出現任何這類詞彙則為 false。"),
+    ("no_empty_praise", "回覆是否完全沒有出現以下具體詞彙或短語？只檢查這些，不要因為「感覺是稱讚」就判為 false：太棒了/很棒/非常有心/好厲害/great job/so proud/impressive/awesome/that's great/keep it up/can't wait/你真的很努力/繼續保持/一起加油/你可以的/you can do it/期待看到/做得好/well done/you're amazing。若出現以上任何一個則為 false，否則為 true。"),
     ("no_restatement", "回覆是否沒有大量複述打卡內容？注意：『reflect_progress』策略需要先引用成員的感受（如「感覺原地踏步」）再矯正，這是策略需要，不算複述。只有當回覆幾乎只是把打卡內容換句話說、沒有新資訊時，才判為 false。"),
     ("specific_reaction", "回覆是否對打卡內容有具體、真實的回應？例如針對某件事提問、給出觀察、或做出連結。泛泛的「繼續加油」不算具體回應，應判為 false。"),
     ("correct_language", "回覆語言是否與打卡語言一致？中文打卡 → 回覆應為繁體中文；英文打卡 → 回覆應為英文。"),

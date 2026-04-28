@@ -247,7 +247,7 @@ _STRATEGY_CONFIGS = {
         "instruction": "This person is exhausted. Validate only. No advice, no 'keep going'. 1-2 warm sentences. End with something like 'today, just being here is enough'.",
     },
     "affirm_resilience": {
-        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity. No job-search advice. Do NOT end with forward-looking cheer ('keep it up', '繼續保持', 'you'll get there').",
+        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity with a statement like 'this is who you are'. No job-search advice. Do NOT end with any forward-looking suggestion starting with 繼續/keep/continue/你就會/you'll.",
     },
     "reframe_attribution": {
         "instruction": "Signs of learned helplessness. Gently challenge the permanent/global attribution. This setback is specific and temporary, not proof they'll always fail. 2-3 sentences. No toxic positivity.",
