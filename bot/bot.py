@@ -277,7 +277,7 @@ _STRATEGY_CONFIGS = {
         "instruction": "Late-stage comfortable routine (week 9+). Acknowledge consistency (1 sentence). Then ask ONE question inviting a slight stretch. Not harsh, just a gentle nudge.",
     },
     "encourage": {
-        "instruction": "Pick ONE specific thing they wrote and react to it like a thoughtful friend who actually read it — not 'great job', not a summary, not 'you're so hardworking'. A real reaction: a question, a brief observation, a small connection to their goal, or a gentle nudge. 2-3 sentences. FORBIDDEN: restating what they did, empty praise (太棒了/very impressive/非常有心/proud of you/awesome/that's great), 'keep it up', 'can't wait to see more', '一起加油', '繼續保持'.",
+        "instruction": "Pick ONE specific thing they wrote and react to it like a thoughtful friend who actually read it. A real reaction: a question, a brief observation, or a small connection to their goal. 2-3 sentences. The reply must end on the question or observation — never on a compliment or a cheer. FORBIDDEN anywhere in the reply: 太棒了/很棒/非常有心/好厲害/awesome/great/impressive/proud/keep it up/can't wait/很期待/繼續保持/一起加油/你可以的/期待看到.",
     },
 }
 
