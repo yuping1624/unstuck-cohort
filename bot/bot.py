@@ -247,7 +247,7 @@ _STRATEGY_CONFIGS = {
         "instruction": "This person is exhausted. Validate only. No advice, no 'keep going'. 1-2 warm sentences. End with something like 'today, just being here is enough'.",
     },
     "affirm_resilience": {
-        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity. No job-search advice.",
+        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity with a statement like 'this is who you are'. No job-search advice. Do NOT end with any forward-looking suggestion starting with 繼續/keep/continue/你就會/you'll.",
     },
     "reframe_attribution": {
         "instruction": "Signs of learned helplessness. Gently challenge the permanent/global attribution. This setback is specific and temporary, not proof they'll always fail. 2-3 sentences. No toxic positivity.",
@@ -271,13 +271,13 @@ _STRATEGY_CONFIGS = {
         "instruction": "Person is likely avoiding a scary action without realising it. Gently name the avoidance pattern without judgment. 2 sentences max. Don't push to act, don't collude with avoidance.",
     },
     "practical_micro_action": {
-        "instruction": "Execution-blocked but emotionally ready. Give ONE Implementation Intention: 'When [specific trigger], I will [tiny behaviour that takes ≤2 min to start]'. More specific than what they already planned.",
+        "instruction": "Execution-blocked but emotionally ready. Give ONE Implementation Intention: 'When [specific trigger], I will [tiny behaviour that takes ≤2 min to start]'. More specific than what they already planned. End on the micro-action itself — no pep talk, no '加油', no 'you can do it' after.",
     },
     "productive_discomfort": {
         "instruction": "Late-stage comfortable routine (week 9+). Acknowledge consistency (1 sentence). Then ask ONE question inviting a slight stretch. Not harsh, just a gentle nudge.",
     },
     "encourage": {
-        "instruction": "Genuine specific encouragement based on what they wrote. Connect to goal if relevant. 1 small forward-looking nudge. 2-3 sentences.",
+        "instruction": "Pick ONE specific thing they wrote and react to it like a thoughtful friend who actually read it. A real reaction: a question, a brief observation, or a small connection to their goal. 2-3 sentences. The reply must end on the question or observation — never on a compliment or a cheer. FORBIDDEN anywhere in the reply: 太棒了/很棒/非常有心/好厲害/awesome/great/impressive/proud/keep it up/can't wait/很期待/繼續保持/一起加油/你可以的/期待看到.",
     },
 }
 
@@ -480,6 +480,11 @@ Strategy instruction: {instruction}
 
 {lang_instruction}
 {correction_note}
+
+Global rules (apply regardless of strategy):
+- Do NOT restate or summarise what the member just said
+- Do NOT use empty praise or closing cheers: 太棒了 / 很棒 / 非常有心 / 好厲害 / awesome / great job / so proud / impressive / keep it up / can't wait to see more / 繼續保持 / 一起加油 / 你可以的 / you can do it
+- React to the SPECIFIC content, not the general fact that they checked in
 
 Output max 4 sentences. Output ONLY the reply, no prefix."""
 
