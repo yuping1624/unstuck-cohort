@@ -963,52 +963,68 @@ Check-ins this week (most reliable signal of actual direction):
 STEP 1 — INTERNAL ANALYSIS (do NOT output anything from this step):
 ═══════════════════════════════════
 
-A. Determine what this member is ACTUALLY working on this week.
-   Use the check-ins as the primary source of truth.
-   If the check-ins clearly diverge from the stored goal (e.g. member has pivoted direction,
-   changed focus, or is working on something entirely different), follow the CHECK-INS,
-   not the stored goal. The stored goal may be stale.
+A. Compare weekly goals vs. check-ins — identify alignment or gap.
+   The weekly goal is the ANCHOR (what the member committed to this week).
+   Check-ins show what actually happened.
+   Three possible relationships:
+   a) Aligned — check-ins match the weekly goal → proceed normally
+   b) Gap — check-ins diverge from weekly goal WITHOUT the member stating a direction change
+      → This is a meaningful signal. The member is drifting from their own commitment.
+        Name the gap in Step C. Do NOT silently follow the check-ins.
+   c) Explicit pivot — member clearly states in check-ins they are changing direction
+      → Follow the new direction. Mark as PIVOTING.
 
 B. Determine the member's actual state:
    → FLOWING: deliberate strategic progress, conscious choices, no real block
-   → STUCK: genuine block with no stated reason for inaction
-   → MIXED: some progress AND a real obstacle worth naming
-   → PIVOTING: member is clearly transitioning to a new direction; old goal no longer applies
+   → STUCK: genuine block — member is not doing what they said they wanted to do, no stated reason
+   → MIXED: real achievements this week AND a genuine obstacle worth naming
+   → PIVOTING: member explicitly states they are shifting to a new direction
 
-   If the member states a reason for pausing or adjusting (e.g. "staying at current job after
-   negotiation", "pausing X to focus on Y"), treat as FLOWING or PIVOTING — never as avoidance.
+   Rules:
+   - If the member states a reason for pausing (e.g. "staying at current job after negotiation",
+     "pausing X to focus on Y"), treat as FLOWING or PIVOTING — never as avoidance.
+   - MIXED requires BOTH real achievement AND a real obstacle. Do not label MIXED if the only
+     issue is a quantity shortfall against a target.
+   - A member who IS taking action (interviewing, producing work, completing tasks) is NOT
+     experiencing "Launch Friction" — Launch Friction = can't start at all.
+   - External factors (market conditions, waiting for responses, others' decisions) are NOT
+     the member's block. If anxiety about uncontrollable factors is affecting them, use
+     "Stoic Control Boundary" lens.
 
-C. If STUCK or MIXED, identify the block precisely (no vague labels):
-   ✗ "procrastination" → ✓ "hasn't reached out to contacts despite it being in weekly goals"
-   Then choose ONE lens: Cognitive Overload / Launch Friction / Learned Helplessness (Seligman) /
+C. If STUCK or MIXED, name the block precisely:
+   ✗ vague → ✓ "completed interviews but has not applied to new positions despite weekly goal"
+   Then choose ONE lens that fits:
+   Cognitive Overload / Launch Friction (can't start) / Learned Helplessness (Seligman) /
    Fear of Evaluation / Identity Gap (James Clear) / Meaning Deficit (Frankl) /
-   Progress Blindness (Amabile) / Execution Fragmentation / Stoic Control Boundary / WOOP gap
+   Progress Blindness (Amabile — can't see own wins) / Execution Fragmentation /
+   Stoic Control Boundary (anxiety over uncontrollables) / WOOP gap (no concrete plan) /
+   Goal-Action Gap (check-ins diverged from weekly commitment without stated reason)
 
-D. For the micro-action: base it on what the member is ACTUALLY doing (from Step 1A).
-   Find the ONE next step that most naturally follows their recent check-ins AND weekly goals.
-   Do NOT suggest actions from the old stored goal if they have clearly pivoted.
+D. Micro-action must come from the member's actual weekly goal AND check-ins combined.
+   For gap cases (1Ab): the micro-action should gently bridge back to the weekly goal.
+   For pivots (1Ac): follow the new direction only.
    Do not invent goals the member did not set themselves.
 
 E. Decide output language: Traditional Chinese if check-ins are mostly Chinese; English if mostly English.
 
 ═══════════════════════════════════
-STEP 2 — OUTPUT (write in the language from Step 1D):
+STEP 2 — OUTPUT (write in the language from Step 1E):
 ═══════════════════════════════════
 
 Use EXACTLY these three headers, no greeting, no sign-off:
 
 🎯 進度快照 / Snapshot:
-<ONE sentence. Ultra-brief factual recap based on check-ins. No praise.>
+<ONE sentence. Ultra-brief factual recap. No praise. If there's a gap between goal and check-ins, name it.>
 
 💡 洞見 / Insight:
 FLOWING/PIVOTING: Validate the direction (1 sentence). Name what phase they're in and what matters most NOW — a focus, not a problem. 2-3 sentences total.
 STUCK/MIXED: Name the specific block and apply the chosen lens. Direct but not harsh. 2-3 sentences. The member should feel seen, not judged.
-Never suggest they return to a goal they've clearly moved away from.
+Goal-Action Gap: Acknowledge what they did do, then name the gap to their weekly goal. One gentle redirect. No lecturing.
 
 🚀 微行動 / Micro-action:
-ONE Implementation Intention based on what the member is ACTUALLY doing (Step 1D):
+ONE Implementation Intention:
 "When [specific trigger], I will [tiny behaviour]."
-Must take ≤2 minutes to START. Grounded in their real current direction.
+Must take ≤2 minutes to START. Grounded in their real direction (bridge toward weekly goal for gap cases).
 
 Total: 180-230 Chinese characters OR 150-190 English words."""
 
