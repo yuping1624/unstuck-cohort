@@ -6,11 +6,24 @@ Usage: python eval_report.py
 """
 import os
 import json
+import time
 from dotenv import load_dotenv
 from google import genai
 
 load_dotenv()
 ai_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+
+def call_with_retry(fn, retries=4, backoff=3):
+    for attempt in range(retries):
+        try:
+            return fn()
+        except Exception as e:
+            if attempt == retries - 1:
+                raise
+            wait = backoff * (2 ** attempt)
+            print(f"\r  ⚠️  API 錯誤（{e}），{wait}s 後重試...", end="", flush=True)
+            time.sleep(wait)
 
 # ── Test cases ────────────────────────────────────────────────────────────────
 
@@ -177,10 +190,11 @@ Rules:
 
 Total: 180-230 Chinese characters OR 150-190 English words."""
 
-    return ai_client.models.generate_content(
+    return call_with_retry(lambda: ai_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
-    ).text.strip()
+    ).text.strip())
+
 
 
 # ── LLM-as-judge ──────────────────────────────────────────────────────────────
@@ -215,10 +229,10 @@ def judge(case: dict, report: str) -> dict[str, bool]:
 回傳格式（只回傳 JSON，不要其他文字）：
 {{"no_language_mix": true/false, "no_jargon": true/false, "active_microaction": true/false, "no_prompt_leak": true/false, "correct_state": true/false}}"""
 
-    response = ai_client.models.generate_content(
+    response = call_with_retry(lambda: ai_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
-    ).text.strip()
+    ).text.strip())
 
     # strip markdown code fences if present
     if response.startswith("```"):
