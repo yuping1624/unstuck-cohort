@@ -5,6 +5,7 @@
 
 import os
 import re
+import json
 import asyncio
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -12,6 +13,7 @@ import discord
 from discord.ext import commands, tasks
 from supabase import create_client, Client
 from google import genai
+from google.genai import types as genai_types
 from zoneinfo import ZoneInfo  # Python 3.9+ 內建，不需要安裝
 from dotenv import load_dotenv
 
@@ -233,6 +235,262 @@ def _is_mainly_english(text: str) -> bool:
     return ascii_letters / len(cleaned) >= 0.7
 
 
+# ─────────────────────────────────────────
+# 多節點 Agent 設計
+# ─────────────────────────────────────────
+
+_STRATEGY_CONFIGS = {
+    "support_rest": {
+        "instruction": "This person is exhausted. Validate only. No advice, no 'keep going'. 1-2 warm sentences. End with something like 'today, just being here is enough'.",
+    },
+    "affirm_resilience": {
+        "instruction": "This person had a setback AND took a recovery action (e.g. {recovery_action}). Acknowledge the difficulty (1 sentence). Then specifically name that recovery action as genuine resilience — not 'despite X you did Y', but 'you know how to take care of yourself'. Connect to identity. No job-search advice.",
+    },
+    "reframe_attribution": {
+        "instruction": "Signs of learned helplessness. Gently challenge the permanent/global attribution. This setback is specific and temporary, not proof they'll always fail. 2-3 sentences. No toxic positivity.",
+    },
+    "validate_ground": {
+        "instruction": "Person is venting and aware they're struggling. Fully validate the feeling (1 sentence). Then offer ONE optional tiny grounding action, framed as a choice not an instruction.",
+    },
+    "explore_meaning": {
+        "instruction": "Person questions if their goal direction is right. Do NOT give action advice. Ask ONE open question to reconnect with their 'why'. Warm, non-judgmental. 1-2 sentences + 1 question.",
+    },
+    "identity_affirmation": {
+        "instruction": "Identity gap — target role doesn't feel like 'who I am yet'. Connect their specific action today to identity formation: 'every time you [what they did], you're becoming the kind of person who...'. 2-3 sentences.",
+    },
+    "reflect_progress": {
+        "instruction": "Person can't see their own progress. Name SPECIFIC completed things from key_observation and hidden_progress. Do not invent. Make them feel genuinely seen. 2-3 sentences.",
+    },
+    "woop_obstacle": {
+        "instruction": "Person is announcing plans. Affirm the plan (1 sentence). Then ask ONE specific question about the most likely obstacle. Do not lecture.",
+    },
+    "gentle_name_fear": {
+        "instruction": "Person is likely avoiding a scary action without realising it. Gently name the avoidance pattern without judgment. 2 sentences max. Don't push to act, don't collude with avoidance.",
+    },
+    "practical_micro_action": {
+        "instruction": "Execution-blocked but emotionally ready. Give ONE Implementation Intention: 'When [specific trigger], I will [tiny behaviour that takes ≤2 min to start]'. More specific than what they already planned.",
+    },
+    "productive_discomfort": {
+        "instruction": "Late-stage comfortable routine (week 9+). Acknowledge consistency (1 sentence). Then ask ONE question inviting a slight stretch. Not harsh, just a gentle nudge.",
+    },
+    "encourage": {
+        "instruction": "Genuine specific encouragement based on what they wrote. Connect to goal if relevant. 1 small forward-looking nudge. 2-3 sentences.",
+    },
+}
+
+
+def _analyze_checkin(
+    content: str,
+    display_name: str,
+    goal_12week: str,
+    goal_thread: str,
+    week_checkins: list,
+    week_number: int,
+) -> dict:
+    """Node 1: Analyze the check-in and return structured analysis as a dict."""
+    _safe_defaults = {
+        "emotional_state": "neutral",
+        "block_type": "none",
+        "mode": "reporting",
+        "energy_for_advice": True,
+        "key_observation": content[:100],
+        "hidden_progress": "",
+        "has_recovery_action": False,
+        "recovery_action": "",
+        "completed_goals": [],
+        "goal_coverage": "none",
+    }
+
+    memory_parts = []
+    if goal_12week:
+        memory_parts.append(f"12-week goal: {goal_12week}")
+    if goal_thread:
+        memory_parts.append(f"This week's focus: {goal_thread}")
+    if week_checkins:
+        checkins_text = "\n".join(f"- {c}" for c in week_checkins)
+        memory_parts.append(f"Other check-ins this week:\n{checkins_text}")
+    memory_section = "\n\n".join(memory_parts)
+
+    prompt = f"""You are an expert career coach and psychologist analyzing a check-in message from a member of a 12-week goal accountability group.
+
+Member: {display_name}
+Week number: {week_number}
+Check-in content: {content}
+
+{memory_section}
+
+Analyze this check-in and return a JSON object with the following fields:
+
+- emotional_state: one of "exhausted|avoidance|helpless|neutral|positive"
+  - exhausted = physically or mentally drained
+  - avoidance = avoiding a scary action (fear of rejection/evaluation) disguised as "nothing done"
+  - helpless = repeated failures causing "nothing works" belief
+  - neutral = stable, matter-of-fact
+  - positive = energised, motivated
+
+- block_type: one of "execution|meaning_crisis|identity_gap|progress_blindness|none"
+  - execution = knows what to do but isn't doing it
+  - meaning_crisis = questioning if goal direction is right
+  - identity_gap = target role doesn't feel like "who I am"
+  - progress_blindness = real progress exists but member can't see it
+  - none = not blocked
+
+- mode: one of "reporting|planning|venting"
+  - reporting = describing what happened
+  - planning = announcing future intentions
+  - venting = primarily expressing emotion
+
+- energy_for_advice: boolean — false if emotional_state is "exhausted" or "helpless"
+
+- key_observation: string — the most specific thing worth responding to in this check-in
+
+- hidden_progress: string — real progress the member made but doesn't recognise, or empty string if none
+
+- has_recovery_action: boolean — true if member took any self-care or recovery action (exercise, rest, cooking, etc.) even if unrelated to official goals
+
+- recovery_action: string — description of the recovery action, or empty string
+
+- completed_goals: array of strings — specific accomplishments mentioned (e.g. "sent 2 job applications", "went for a run", "finished resume draft") — include ALL goals not just official ones
+
+- goal_coverage: one of "full|partial|none|bonus"
+  - full = completed all official weekly goals
+  - partial = completed some official weekly goals
+  - none = no official goals completed
+  - bonus = completed things outside official goals only
+
+Return ONLY valid JSON, no markdown, no explanation."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json"
+            ),
+        )
+        raw = response.text or ""
+        result = json.loads(raw)
+        # Ensure all required keys exist with safe defaults
+        for k, v in _safe_defaults.items():
+            if k not in result:
+                result[k] = v
+        return result
+    except Exception as e:
+        print(f"[agent] _analyze_checkin 失敗：{e}")
+        return _safe_defaults
+
+
+def _route(analysis: dict, week_number: int) -> str:
+    """Node 2: Pure Python routing — returns strategy string based on analysis."""
+    es = analysis.get("emotional_state", "neutral")
+    bt = analysis.get("block_type", "none")
+    mode = analysis.get("mode", "reporting")
+    can_advise = analysis.get("energy_for_advice", True)
+    has_recovery = analysis.get("has_recovery_action", False)
+    has_hidden = bool(analysis.get("hidden_progress", "").strip())
+
+    if es == "exhausted" and has_recovery:
+        return "affirm_resilience"
+    if es == "helpless" and has_recovery:
+        return "affirm_resilience"
+    if es == "exhausted":
+        return "support_rest"
+    if es == "helpless":
+        return "reframe_attribution"
+    if mode == "venting" and es == "avoidance":
+        return "validate_ground"
+    if mode == "venting" and not can_advise:
+        return "validate_ground"
+    if bt == "meaning_crisis":
+        return "explore_meaning"
+    if bt == "identity_gap":
+        return "identity_affirmation"
+    if bt == "progress_blindness" or has_hidden:
+        return "reflect_progress"
+    if mode == "planning":
+        return "woop_obstacle"
+    if es == "avoidance" and mode == "reporting":
+        return "gentle_name_fear"
+    if bt == "execution" and can_advise:
+        return "practical_micro_action"
+    if week_number >= 9 and bt == "none" and mode == "reporting":
+        return "productive_discomfort"
+    return "encourage"
+
+
+def _generate_reply(
+    strategy: str,
+    analysis: dict,
+    content: str,
+    display_name: str,
+    streak: int,
+    goal_12week: str,
+    goal_thread: str,
+    is_english: bool,
+) -> str:
+    """Node 3: Generate the final reply using the chosen strategy."""
+    config = _STRATEGY_CONFIGS.get(strategy, _STRATEGY_CONFIGS["encourage"])
+    instruction = config["instruction"]
+
+    # Inject recovery_action into affirm_resilience instruction
+    if strategy == "affirm_resilience":
+        recovery_action = analysis.get("recovery_action", "")
+        instruction = instruction.replace("{recovery_action}", recovery_action or "a recovery action")
+
+    # Language instruction
+    if is_english:
+        lang_instruction = "IMPORTANT: Write your reply entirely in English. Natural tone, like a native speaker. Casual and conversational."
+    else:
+        lang_instruction = "IMPORTANT: Write your reply entirely in Traditional Chinese (繁體中文). Natural tone, casual like a friend."
+
+    # Streak note
+    streak_note = ""
+    if streak > 1:
+        streak_note = f"\nNote: This is their {streak}-day check-in streak."
+
+    # English correction note
+    correction_note = ""
+    if ENABLE_ENGLISH_CORRECTION and is_english:
+        correction_note = "\nIf the member's English has obvious unnatural phrasing (Chinglish), add ONE brief P.S. showing a more natural way to say it. Preserve their tone. Don't correct common casual abbreviations (gonna, wanna, btw, etc.)."
+
+    # Context about the check-in
+    key_obs = analysis.get("key_observation", content[:100])
+    hidden = analysis.get("hidden_progress", "")
+
+    memory_parts = []
+    if goal_12week:
+        memory_parts.append(f"12-week goal: {goal_12week}")
+    if goal_thread:
+        memory_parts.append(f"This week's focus: {goal_thread}")
+    memory_section = "\n".join(memory_parts)
+
+    prompt = f"""You are a warm, genuine accountability group assistant replying to a member's daily check-in.
+
+Member: {display_name}
+Check-in: {content}
+Key observation: {key_obs}
+{"Hidden progress: " + hidden if hidden else ""}
+{memory_section}
+{streak_note}
+
+Strategy instruction: {instruction}
+
+{lang_instruction}
+{correction_note}
+
+Output max 4 sentences. Output ONLY the reply, no prefix."""
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
+        )
+        return response.text or "今天已經成功打卡了！你的努力已經被記錄下來 🙌"
+    except Exception as e:
+        print(f"[agent] _generate_reply 失敗：{e}")
+        return "今天已經成功打卡了！AI 目前暫時無法生成回覆，但你的打卡我都有看到 💪"
+
+
 def get_ai_reply(
     content: str,
     display_name: str,
@@ -240,67 +498,39 @@ def get_ai_reply(
     goal_12week: str = "",
     goal_thread: str = "",
     week_checkins: list = None,
+    week_number: int = 0,
 ) -> str:
-    """呼叫 Gemini 產生個人化回覆；失敗時回傳友善預設訊息"""
-    streak_context = f"（今天是他連續第 {streak} 天打卡）" if streak > 1 else "（今天是他第一次或重新開始打卡）"
-
-    is_english = _is_mainly_english(content)
-
-    if is_english:
-        lang_instruction = """使用者這次主要是用英文打卡，因此你最終輸出的回覆必須「完全以英文書寫」，不要使用中文。語氣自然、像母語人士，允許口語化與日常對話用語。"""
-    else:
-        lang_instruction = """使用者這次主要是用繁體中文打卡，因此你最終輸出的回覆必須「完全以繁體中文書寫」，不要使用英文。語氣自然、口語化，像朋友聊天。"""
-
-    correction_instruction = ""
-    if ENABLE_ENGLISH_CORRECTION and is_english:
-        correction_instruction = """
-若使用者的英文帶有明顯「中式英文」或不太自然的表達，請在回覆的最後，用 1 句簡短的英文示範更自然、道地的說法，例如：'P.S. A more natural way to say this is: ...'。請優先保留原本的語氣與情緒，不要改成很正式的文章；對於母語人士常用的縮寫或口語（例如 gonna, wanna, btw 等）通常不必更正，除非會讓意思變得不清楚。"""
-
-    # 組裝記憶 context（只在有資料時才加入）
-    memory_context = ""
-    if goal_12week:
-        memory_context += f"\n【12 週目標】{goal_12week}"
-    if goal_thread:
-        memory_context += f"\n【近期目標與進展紀錄】\n{goal_thread}"
-    if week_checkins:
-        checkins_text = "\n".join(f"- {c}" for c in week_checkins)
-        memory_context += f"\n【本週其他打卡紀錄】\n{checkins_text}"
-
-    memory_section = ""
-    if memory_context:
-        memory_section = f"\n\n以下是關於這位成員的背景資訊，請參考後給出更有針對性的回覆：{memory_context}\n"
-
-    prompt = f"""你是一個溫暖、真誠的目標達成群組助手，負責回覆成員的每日打卡。群組成員各自有不同的 12 週目標（有人求職、有人做 side project、有人學習新技能等），請根據每位成員的個人目標給予回覆，不要預設所有人都在求職。
-
-成員：{display_name} {streak_context}
-今天的打卡內容：{content}
-{memory_section}
-{lang_instruction}
-其他要求：
-1. 回覆長度根據打卡內容調整：打卡內容簡短（1-2 句）就回 2 句；打卡內容豐富（3 句以上或超過 80 字）必須回 3-4 句，針對他提到的具體細節給予回饋，絕對不能只用一句話帶過，但不要超過 5 句
-2. 針對他寫的內容給出真實共鳴，不要泛泛鼓勵，例如不要說「加油」、「繼續努力」這種空洞的話
-3. 如果有情緒低落的跡象，給予溫暖支持而非空洞打氣；若【本週其他打卡紀錄】裡有具體的進展或克服困難的內容，可以提及來鼓勵他，但不能用【12 週目標】或【近期目標與進展紀錄】的內容來假裝是「你之前做過的事」
-4. 如果有具體進展（面試、Offer等），真心恭喜
-5. 若今天打卡內容和 12 週目標無關（例如休息、身體不舒服、考試），必須在回覆最後加上一句明天可以做的超小具體行動，直接從【當週目標】的行動項目裡挑一件最小的來建議（例如目標是投履歷就說「明天投一間就好」、目標是 coffee chat 就說「明天傳一封訊息約一個人」），不要自己推測或發揮，不要複述目標原文，語氣像朋友隨口一提，不要說教
-6. 結尾可以加 1 個 emoji，不要過多
-7. 語氣像朋友，不要像機器人或客服
-8. 若有背景資訊，自然地融入回覆，不要生硬地逐條列舉
-9. 不要說「我們之前聊過」、「你之前提過」、「你說過」這類假裝有過去對話的語句，直接自然帶入就好
-{correction_instruction}
-
-只輸出回覆內容，不要加任何前綴。"""
-
+    """Orchestrator: runs 3-node agent pipeline and returns reply string."""
     try:
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt,
+        analysis = _analyze_checkin(
+            content=content,
+            display_name=display_name,
+            goal_12week=goal_12week,
+            goal_thread=goal_thread,
+            week_checkins=week_checkins or [],
+            week_number=week_number,
         )
-        # 部分情況可能不會有 text，做個保險
-        return response.text or "今天已經成功打卡了！你的努力已經被記錄下來 🙌"
+        strategy = _route(analysis, week_number)
+        print(
+            f"[agent] {display_name} → {strategy} | "
+            f"state={analysis.get('emotional_state')} "
+            f"block={analysis.get('block_type')} "
+            f"mode={analysis.get('mode')}"
+        )
+        is_english = _is_mainly_english(content)
+        reply = _generate_reply(
+            strategy=strategy,
+            analysis=analysis,
+            content=content,
+            display_name=display_name,
+            streak=streak,
+            goal_12week=goal_12week,
+            goal_thread=goal_thread,
+            is_english=is_english,
+        )
+        return reply
     except Exception as e:
-        # 印在終端機方便你 debug
         print(f"AI 回覆失敗（get_ai_reply）：{e}")
-        # 回傳一則友善的預設訊息，避免完全沒有回覆
         return "今天已經成功打卡了！AI 目前暫時無法生成回覆，但你的打卡我都有看到 💪"
 
 
@@ -679,7 +909,9 @@ def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str
                             checkins: list[dict]) -> str:
     """Calls Gemini to produce a personalised weekly DM report."""
     checkin_lines = "\n".join(
-        f"- [{c['date']}] {c['content'][:120]}" for c in checkins
+        f"- [{c['date']}] {c['content'][:100]}"
+        + (f" (completed: {', '.join(c['completed_goals'])})" if c.get('completed_goals') else "")
+        for c in checkins
     ) or "(no check-ins this week)"
 
     prompt = f"""You are a brutally honest but deeply caring career coach for a 12-week job-search accountability group.
@@ -788,7 +1020,7 @@ async def post_report_preview(member_row: dict, guild: discord.Guild,
     last_sunday = today_date - timedelta(days=today_date.weekday() + 1)
     last_monday = last_sunday - timedelta(days=6)
     checkins_res = supabase.table("checkins") \
-        .select("date, content") \
+        .select("date, content, completed_goals") \
         .eq("member_id", member_row["id"]) \
         .gte("date", last_monday.strftime("%Y-%m-%d")) \
         .lte("date", last_sunday.strftime("%Y-%m-%d")) \
@@ -1039,14 +1271,49 @@ async def on_message(message: discord.Message):
         try:
             goal_ctx = await asyncio.to_thread(get_member_goal_context, member_id)
             week_checkins = await asyncio.to_thread(get_this_week_checkins, member_id, member_tz)
+            week_number = week_number_for_member(member_tz)
+
+            # Node 1: analyze check-in
+            analysis = await asyncio.to_thread(
+                _analyze_checkin,
+                content,
+                author.display_name,
+                goal_ctx["goal_12week"],
+                goal_ctx["goal_thread"],
+                week_checkins,
+                week_number,
+            )
+
+            # Node 2: route to strategy
+            strategy = _route(analysis, week_number)
+            print(
+                f"[agent] {author.display_name} → {strategy} | "
+                f"state={analysis.get('emotional_state')} "
+                f"block={analysis.get('block_type')} "
+                f"mode={analysis.get('mode')}"
+            )
+
+            # Store completed_goals and goal_coverage to the checkin DB row
+            try:
+                supabase.table("checkins").update({
+                    "completed_goals": analysis.get("completed_goals", []),
+                    "goal_coverage": analysis.get("goal_coverage", "none"),
+                }).eq("id", checkin["id"]).execute()
+            except Exception as db_e:
+                print(f"更新 completed_goals 失敗：{db_e}")
+
+            # Node 3: generate reply
+            is_english = _is_mainly_english(content)
             reply = await asyncio.to_thread(
-                get_ai_reply,
+                _generate_reply,
+                strategy,
+                analysis,
                 content,
                 author.display_name,
                 streak,
                 goal_ctx["goal_12week"],
                 goal_ctx["goal_thread"],
-                week_checkins,
+                is_english,
             )
             save_ai_reply(checkin["id"], reply)
 
