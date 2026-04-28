@@ -40,6 +40,9 @@ ENABLE_ENGLISH_CORRECTION = True
 # 管理員頻道（bot 發送洞察報告用）
 ADMIN_CHANNEL_NAME = "bot-log"
 
+# 不發每日提醒的成員（助教/觀察者角色）
+REMINDER_EXCLUDED = {"680760447972147247", "214883164009529344"}  # Zoe-Yeh, Trapper
+
 # Dashboard 網址（選填，用於 !me 產生專屬連結，例如 https://xxx.vercel.app）
 DASHBOARD_URL = (os.environ.get("DASHBOARD_URL") or "").strip().rstrip("/")
 
@@ -949,56 +952,75 @@ def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str
         for c in checkins
     ) or "(no check-ins this week)"
 
-    prompt = f"""You are a brutally honest but deeply caring career coach for a 12-week job-search accountability group.
+    prompt = f"""You are a warm but honest coach for a 12-week goal-achievement group.
+Members have diverse goals — job search, career pivot, side projects, skill-building, etc.
+Do NOT assume everyone is job-hunting. Follow what each member is actually doing.
+
+CRITICAL: Your output must contain ONLY the three emoji-headed sections below. No analysis, no reasoning, no labels, no intermediate steps. Anything that is not part of the final output must remain entirely in your head.
 
 Member: {display_name}
-12-week goal: {goal_12week or '(not set)'}
-This week's focus: {goal_thread or '(not set)'}
+12-week goal (stored, may be outdated): {goal_12week or '(not set)'}
+This week's focus / weekly goals (stored): {goal_thread or '(not set)'}
 Check-ins this week:
 {checkin_lines}
 
-═══════════════════════════════════
-STEP 1 — INTERNAL DIAGNOSIS (do NOT output anything from this step):
-═══════════════════════════════════
+Before writing, reason silently (output nothing) about:
 
-A. Identify the ONE specific block this member faces. Be precise:
-   ✗ "procrastination"  →  ✓ "hasn't sent any applications despite planning to for two weeks"
-   ✗ "anxiety"          →  ✓ "avoids reaching out to contacts to escape fear of seeming desperate"
+[Compare goals vs check-ins]
+The weekly goal is the ANCHOR. Check-ins show what actually happened.
+Three relationships:
+- Aligned: check-ins match weekly goal
+- Gap: check-ins diverge without member stating a direction change → name the gap, don't silently follow check-ins
+- Explicit pivot: member clearly states they are changing direction → follow new direction
 
-B. Choose the ONE psychological lens that best explains WHY this block persists:
-   • Cognitive Overload — too many competing priorities; working memory is full, execution collapses
-   • Launch Friction — initiation cost feels disproportionately high relative to the perceived reward
-   • Learned Helplessness (Seligman) — repeated setbacks caused withdrawal; "nothing I do matters"
-   • Fear of Evaluation — avoids action to avoid being judged or rejected (approach-avoidance conflict)
-   • Identity Gap (James Clear) — the target role doesn't feel like "who I am yet"; behaviour and identity misaligned
-   • Meaning Deficit (Frankl / Logotherapy) — disconnected from the deeper "why"; job search feels hollow
-   • Progress Blindness (Amabile) — real incremental progress exists but the member cannot perceive it
-   • Execution Fragmentation — right intention, but no reliable time/environment system to convert intent to action
-   • Stoic Control Boundary — energy spent on outcomes (offer, response) rather than process (applications sent, prep quality)
-   • WOOP gap (Oettingen) — visualising success without mentally contrasting the obstacle → false sense of progress
+[Classify state]
+FLOWING — deliberate progress, conscious choices, no real block
+   Also use FLOWING if member is clearly at a MORE ADVANCED stage than the prep goal assumed
+   (e.g. already in active interviews when goal was to start applying — that's ahead, not behind)
+STUCK — member is not doing what they committed to, no stated reason
+MIXED — real achievement AND a genuine obstacle (not just a quantity shortfall)
+PIVOTING — member explicitly states they are shifting to a new direction
 
-C. Decide output language: Traditional Chinese if check-ins are mostly Chinese; English if mostly English.
+Rules:
+- A stated reason for pausing = FLOWING or PIVOTING, never avoidance
+- Launch Friction = literally can't start. A member who IS interviewing/producing/completing tasks is NOT Launch Friction
+- External anxieties (market, layoffs, waiting on others) = Stoic Control Boundary, not a personal block
+- MIXED requires both real wins AND a real obstacle
 
-═══════════════════════════════════
-STEP 2 — OUTPUT (write in the language from Step 1C):
-═══════════════════════════════════
+[If STUCK or MIXED, choose ONE precise lens]
+Cognitive Overload / Launch Friction (can't start at all) / Learned Helplessness /
+Fear of Evaluation / Identity Gap / Meaning Deficit / Progress Blindness (can't see own wins) /
+Execution Fragmentation / Stoic Control Boundary / WOOP gap / Goal-Action Gap
+
+[Micro-action source]
+Gap cases: bridge gently back to weekly goal
+Pivot cases: follow new direction
+Never invent goals the member didn't set themselves
+
+[Language]
+Traditional Chinese if check-ins are mostly Chinese; English if mostly English.
+
+Now write ONLY the output. Start directly with 🎯. Do not include any analysis or labels.
 
 Use EXACTLY these three headers, no greeting, no sign-off:
 
 🎯 進度快照 / Snapshot:
-<ONE sentence. Ultra-brief factual recap. No praise. Member already knows what they did — don't re-narrate it.>
+<ONE sentence. Ultra-brief factual recap. No praise. If there's a gap between goal and check-ins, name it.>
 
 💡 洞見 / Insight:
-<2-3 sentences. Name the specific block from Step 1A. Apply the lens from Step 1B to explain the psychology behind it — reference the framework concept by name if helpful (e.g. "launch friction", "learned helplessness", "identity gap"). Be direct and honest. Zero flattery. The member should feel: "this AI sees my real obstacle, not just my surface behaviour".>
+FLOWING/PIVOTING: Validate the direction (1 sentence). Name what phase they're in and what matters most NOW — a focus, not a problem. 2-3 sentences total.
+STUCK/MIXED: Name the specific block and apply the chosen lens. Direct but not harsh. 2-3 sentences. The member should feel seen, not judged.
+Goal-Action Gap: Acknowledge what they did do, then name the gap to their weekly goal. One gentle redirect. No lecturing.
 
 🚀 微行動 / Micro-action:
-<ONE Implementation Intention: "When [specific trigger / time / situation], I will [tiny specific behaviour]."
-Constraints: (1) Starting it takes ≤2 minutes. (2) It must be MORE specific and smaller than anything the member already planned. (3) Its sole purpose is to dissolve the identified block's launch friction — not to complete a project.>
+ONE Implementation Intention:
+"When [specific trigger], I will [tiny behaviour]."
+Must take ≤2 minutes to START. Grounded in their real direction (bridge toward weekly goal for gap cases).
 
 Total: 180-230 Chinese characters OR 150-190 English words."""
 
     return ai_client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model="gemini-2.5-flash",
         contents=prompt
     ).text.strip()
 
@@ -1062,6 +1084,10 @@ async def post_report_preview(member_row: dict, guild: discord.Guild,
         .order("date") \
         .execute()
     checkins = checkins_res.data or []
+
+    has_any_goal = bool(member_row.get("goal_12week_summary") or member_row.get("goal_thread_current"))
+    if not has_any_goal or len(checkins) == 0:
+        return False
 
     has_weekly_goal = bool(member_row.get("goal_thread_current"))
     if not force and (len(checkins) < 3 or not has_weekly_goal):
@@ -1585,10 +1611,11 @@ async def daily_reminder():
         .select("id, discord_id, display_name, timezone") \
         .execute().data
 
-    # 篩出「現在剛好是當地 21:xx」的成員
+    # 篩出「現在剛好是當地 21:xx」的成員（排除助教/觀察者）
     members_to_check = [
         m for m in all_members
         if now_utc.astimezone(ZoneInfo(m.get("timezone") or "Asia/Taipei")).hour == 21
+        and str(m.get("discord_id")) not in REMINDER_EXCLUDED
     ]
 
     if not members_to_check:
