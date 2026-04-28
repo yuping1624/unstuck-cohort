@@ -1078,6 +1078,10 @@ async def post_report_preview(member_row: dict, guild: discord.Guild,
         .execute()
     checkins = checkins_res.data or []
 
+    has_any_goal = bool(member_row.get("goal_12week_summary") or member_row.get("goal_thread_current"))
+    if not has_any_goal or len(checkins) == 0:
+        return False
+
     has_weekly_goal = bool(member_row.get("goal_thread_current"))
     if not force and (len(checkins) < 3 or not has_weekly_goal):
         return False
