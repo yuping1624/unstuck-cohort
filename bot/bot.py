@@ -1011,11 +1011,17 @@ Use EXACTLY these three headers, no greeting, no sign-off:
 FLOWING/PIVOTING: Validate the direction (1 sentence). Name what phase they're in and what matters most NOW — a focus, not a problem. 2-3 sentences total.
 STUCK/MIXED: Name the specific block and apply the chosen lens. Direct but not harsh. 2-3 sentences. The member should feel seen, not judged.
 Goal-Action Gap: Acknowledge what they did do, then name the gap to their weekly goal. One gentle redirect. No lecturing.
+IMPORTANT: Never use framework names or jargon (e.g. "斯多葛", "Launch Friction", "WOOP", "Stoic", "Amabile") in the output. Describe the idea in plain everyday language that any member can understand.
 
 🚀 微行動 / Micro-action:
-ONE Implementation Intention:
-"When [specific trigger], I will [tiny behaviour]."
-Must take ≤2 minutes to START. Grounded in their real direction (bridge toward weekly goal for gap cases).
+ONE concrete Implementation Intention written entirely in the output language (do NOT mix languages):
+Chinese output → 當[具體觸發點]，我會[微小行動]。（不加引號）
+English output → "When [specific trigger], I will [tiny behaviour]."
+Rules:
+- Must be an ACTIVE behaviour: 寫/打/發送/完成/開啟並輸入/打電話 etc.
+- FORBIDDEN passive verbs: 看/閱讀/瀏覽/查看/review/browse/read/watch/look at
+- Must take ≤2 minutes to START
+- Grounded in their real direction (bridge toward weekly goal for gap cases)
 
 Total: 180-230 Chinese characters OR 150-190 English words."""
 
@@ -1028,20 +1034,22 @@ Total: 180-230 Chinese characters OR 150-190 English words."""
 class ReportApprovalView(discord.ui.View):
     """Approval buttons posted to admin channel before DM-ing the member."""
 
-    def __init__(self, discord_id: str, report_text: str, display_name: str):
+    def __init__(self, discord_id: str, report_text: str, display_name: str, date_range: str = ""):
         super().__init__(timeout=86400)  # 24-hour window
         self.discord_id = discord_id
         self.report_text = report_text
         self.display_name = display_name
+        self.date_range = date_range
 
     @discord.ui.button(label="✅ 發送 DM", style=discord.ButtonStyle.success)
     async def send_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             member = (interaction.guild.get_member(int(self.discord_id))
                       or await interaction.guild.fetch_member(int(self.discord_id)))
-            await member.send(
-                f"📬 **你的本週個人回顧 / Your Weekly Report**\n\n{self.report_text}"
-            )
+            header = f"📬 **你的本週個人回顧 / Your Weekly Report**"
+            if self.date_range:
+                header += f"（{self.date_range}）"
+            await member.send(f"{header}\n\n{self.report_text}")
             for child in self.children:
                 child.disabled = True
             button.label = "✅ 已發送"
@@ -1105,14 +1113,16 @@ async def post_report_preview(member_row: dict, guild: discord.Guild,
         print(f"週報 AI 生成失敗 ({discord_id}): {e}")
         return False
 
+    date_range = f"{last_monday.strftime('%m/%d')} – {last_sunday.strftime('%m/%d')}"
+
     embed = discord.Embed(
         title=f"📬 週報預覽 — {member_row.get('display_name', discord_id)}",
         description=report_text,
         color=0x7c3aed,
     )
-    embed.set_footer(text=f"本週打卡 {len(checkins)} 次 · 確認後點「發送 DM」")
+    embed.set_footer(text=f"{date_range} · 打卡 {len(checkins)} 次 · 確認後點「發送 DM」")
 
-    view = ReportApprovalView(discord_id, report_text, member_row.get("display_name", ""))
+    view = ReportApprovalView(discord_id, report_text, member_row.get("display_name", ""), date_range)
     await channel.send(embed=embed, view=view)
     return True
 

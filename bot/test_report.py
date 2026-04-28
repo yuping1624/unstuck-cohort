@@ -85,11 +85,17 @@ Use EXACTLY these three headers, no greeting, no sign-off:
 FLOWING/PIVOTING: Validate the direction (1 sentence). Name what phase they're in and what matters most NOW — a focus, not a problem. 2-3 sentences total.
 STUCK/MIXED: Name the specific block and apply the chosen lens. Direct but not harsh. 2-3 sentences. The member should feel seen, not judged.
 Goal-Action Gap: Acknowledge what they did do, then name the gap to their weekly goal. One gentle redirect. No lecturing.
+IMPORTANT: Never use framework names or jargon (e.g. "斯多葛", "Launch Friction", "WOOP", "Stoic", "Amabile") in the output. Describe the idea in plain everyday language that any member can understand.
 
 🚀 微行動 / Micro-action:
-ONE Implementation Intention:
-"When [specific trigger], I will [tiny behaviour]."
-Must take ≤2 minutes to START. Grounded in their real direction (bridge toward weekly goal for gap cases).
+ONE concrete Implementation Intention written entirely in the output language (do NOT mix languages):
+Chinese output → 當[具體觸發點]，我會[微小行動]。（不加引號）
+English output → "When [specific trigger], I will [tiny behaviour]."
+Rules:
+- Must be an ACTIVE behaviour: 寫/打/發送/完成/開啟並輸入/打電話 etc.
+- FORBIDDEN passive verbs: 看/閱讀/瀏覽/查看/review/browse/read/watch/look at
+- Must take ≤2 minutes to START
+- Grounded in their real direction (bridge toward weekly goal for gap cases)
 
 Total: 180-230 Chinese characters OR 150-190 English words."""
 
