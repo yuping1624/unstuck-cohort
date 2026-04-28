@@ -1183,7 +1183,11 @@ class SurveyQ2View(discord.ui.View):
 async def survey(ctx, public_channel: discord.TextChannel = None):
     """[Admin] 啟動結業問卷：私訊所有成員 Q1+Q2，並在指定公開頻道發 Q3。
     用法：!survey 或 !survey #頻道名稱"""
-    q3_channel = public_channel or ctx.channel
+    q3_channel = public_channel or discord.utils.get(ctx.guild.channels, name="general-chat") or ctx.channel
+    admin_ch = discord.utils.get(ctx.guild.channels, name=ADMIN_CHANNEL_NAME)
+    if not admin_ch:
+        await ctx.reply(f"找不到 #{ADMIN_CHANNEL_NAME} 頻道，請先建立它。")
+        return
 
     all_members = await asyncio.to_thread(
         lambda: supabase.table("members")
@@ -1209,7 +1213,7 @@ async def survey(ctx, public_channel: discord.TextChannel = None):
             _pending_surveys[discord_id] = {
                 "q1": None,
                 "member_name": member.display_name,
-                "admin_channel_id": ctx.channel.id,
+                "admin_channel_id": admin_ch.id,
             }
             await member.send(
                 "👋 嗨！這是求職群組的結業問卷，你的回答只有管理員看得到。\n\n"
@@ -1232,7 +1236,7 @@ async def survey(ctx, public_channel: discord.TextChannel = None):
 
     await ctx.reply(
         f"✅ 問卷發送完成！成功 {sent} 人，失敗 {failed} 人。\n"
-        f"成員的 Q1+Q2 回覆會統一傳到這個頻道，Q3 已發到 #{q3_channel.name}。"
+        f"成員的 Q1+Q2 回覆會統一傳到 #{ADMIN_CHANNEL_NAME}，Q3 已發到 #{q3_channel.name}。"
     )
 
 
