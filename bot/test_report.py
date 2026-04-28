@@ -1,16 +1,21 @@
 """
 Standalone test script for generate_weekly_report().
+Fetches real member data from Supabase and runs the report for all eligible members.
+
 Usage: python test_report.py
-Requires: GEMINI_API_KEY in bot/.env (or set as env var)
+Requires: GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY in bot/.env
 """
 import os
+from datetime import date, timedelta
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from google import genai
+from supabase import create_client
 
 load_dotenv()
 
-GEMINI_KEY = os.environ["GEMINI_API_KEY"]
-ai_client = genai.Client(api_key=GEMINI_KEY)
+ai_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 
 def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str,
@@ -106,58 +111,54 @@ Total: 180-230 Chinese characters OR 150-190 English words."""
     ).text.strip()
 
 
-# ── Test cases ──────────────────────────────────────────────────────────────
-
-CASES = [
-    {
-        "label": "Vicky — Final Interview + market anxiety",
-        "display_name": "Vicky",
-        "goal_12week": "在12週內拿到一份理想的全職工作 offer",
-        "goal_thread": "本週目標：投遞5間公司，更新LinkedIn，準備面試",
-        "checkins": [
-            {"date": "2026-04-21", "content": "今天面試了一間公司，感覺還不錯，但看到Meta大裁員的新聞有點心慌"},
-            {"date": "2026-04-23", "content": "收到第一間的Final Interview通知！很開心但也有點緊張，調整了CV格式"},
-            {"date": "2026-04-25", "content": "第二間面試完了。最近有點心累，擔心市場環境，投遞數量沒有達標"},
-        ],
-    },
-    {
-        "label": "Cinie — Weekly goal says job search, check-ins show something else",
-        "display_name": "Cinie",
-        "goal_12week": "找到一份全職工作",
-        "goal_thread": "本週目標：投遞3間公司，聯繫2位業界朋友",
-        "checkins": [
-            {"date": "2026-04-21", "content": "今天花時間整理自己的freelance portfolio，更新了作品集網站"},
-            {"date": "2026-04-23", "content": "接了一個小案子，客戶反饋很好，決定繼續接更多freelance"},
-            {"date": "2026-04-25", "content": "又接了一個案子，收入還不錯，感覺freelance比找工作更適合我現在的狀態"},
-        ],
-    },
-    {
-        "label": "Hardy — Deliberate strategic pause",
-        "display_name": "Hardy",
-        "goal_12week": "轉職到產品經理職位",
-        "goal_thread": "本週目標：投遞2間公司，準備PM面試題",
-        "checkins": [
-            {"date": "2026-04-21", "content": "跟現在的公司談薪水，他們願意加薪留我，我決定暫緩求職觀察看看"},
-            {"date": "2026-04-23", "content": "留下來繼續做，但趁這段時間把PM的side project做起來"},
-            {"date": "2026-04-25", "content": "side project進度不錯，暫時不投履歷，專注在累積作品"},
-        ],
-    },
-]
+def get_last_week_range(tz_str: str) -> tuple[date, date]:
+    """Return (last_monday, last_sunday) in member's local timezone."""
+    from datetime import datetime
+    today = datetime.now(ZoneInfo(tz_str)).date()
+    last_sunday = today - timedelta(days=today.weekday() + 1)
+    last_monday = last_sunday - timedelta(days=6)
+    return last_monday, last_sunday
 
 
 def main():
-    for case in CASES:
+    members_res = supabase.table("members").select(
+        "id, discord_id, display_name, timezone, goal_12week_summary, goal_thread_current"
+    ).execute()
+    members = members_res.data or []
+
+    for member in members:
+        name = member.get("display_name", "?")
+        tz_str = member.get("timezone") or "Asia/Taipei"
+        last_monday, last_sunday = get_last_week_range(tz_str)
+
+        checkins_res = supabase.table("checkins") \
+            .select("date, content, completed_goals") \
+            .eq("member_id", member["id"]) \
+            .gte("date", last_monday.strftime("%Y-%m-%d")) \
+            .lte("date", last_sunday.strftime("%Y-%m-%d")) \
+            .order("date") \
+            .execute()
+        checkins = checkins_res.data or []
+
+        has_any_goal = bool(member.get("goal_12week_summary") or member.get("goal_thread_current"))
+        if not has_any_goal or len(checkins) == 0:
+            print(f"\n{'─'*50}")
+            print(f"⏭  {name} — 跳過（無目標或無打卡）")
+            continue
+
         print(f"\n{'='*60}")
-        print(f"TEST: {case['label']}")
+        print(f"📬 週報預覽 — {name}  [{last_monday} ~ {last_sunday}]  ({len(checkins)} 次打卡)")
         print('='*60)
-        result = generate_weekly_report(
-            display_name=case["display_name"],
-            goal_12week=case["goal_12week"],
-            goal_thread=case["goal_thread"],
-            checkins=case["checkins"],
-        )
-        print(result)
-        print()
+        try:
+            result = generate_weekly_report(
+                display_name=name,
+                goal_12week=member.get("goal_12week_summary", ""),
+                goal_thread=member.get("goal_thread_current", ""),
+                checkins=checkins,
+            )
+            print(result)
+        except Exception as e:
+            print(f"❌ 生成失敗: {e}")
 
 
 if __name__ == "__main__":
