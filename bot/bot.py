@@ -1017,7 +1017,7 @@ Must take ≤2 minutes to START. Grounded in their real direction (bridge toward
 Total: 180-230 Chinese characters OR 150-190 English words."""
 
     return ai_client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model="gemini-2.5-flash",
         contents=prompt
     ).text.strip()
 
