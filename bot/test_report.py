@@ -30,63 +30,51 @@ def generate_weekly_report(display_name: str, goal_12week: str, goal_thread: str
 Members have diverse goals — job search, career pivot, side projects, skill-building, etc.
 Do NOT assume everyone is job-hunting. Follow what each member is actually doing.
 
+CRITICAL: Your output must contain ONLY the three emoji-headed sections below. No analysis, no reasoning, no labels, no intermediate steps. Anything that is not part of the final output must remain entirely in your head.
+
 Member: {display_name}
 12-week goal (stored, may be outdated): {goal_12week or '(not set)'}
 This week's focus / weekly goals (stored): {goal_thread or '(not set)'}
-Check-ins this week (most reliable signal of actual direction):
+Check-ins this week:
 {checkin_lines}
 
-═══════════════════════════════════
-STEP 1 — INTERNAL ANALYSIS (do NOT output anything from this step):
-═══════════════════════════════════
+Before writing, reason silently (output nothing) about:
 
-A. Compare weekly goals vs. check-ins — identify alignment or gap.
-   The weekly goal is the ANCHOR (what the member committed to this week).
-   Check-ins show what actually happened.
-   Three possible relationships:
-   a) Aligned — check-ins match the weekly goal → proceed normally
-   b) Gap — check-ins diverge from weekly goal WITHOUT the member stating a direction change
-      → This is a meaningful signal. The member is drifting from their own commitment.
-        Name the gap in Step C. Do NOT silently follow the check-ins.
-   c) Explicit pivot — member clearly states in check-ins they are changing direction
-      → Follow the new direction. Mark as PIVOTING.
+[Compare goals vs check-ins]
+The weekly goal is the ANCHOR. Check-ins show what actually happened.
+Three relationships:
+- Aligned: check-ins match weekly goal
+- Gap: check-ins diverge without member stating a direction change → name the gap, don't silently follow check-ins
+- Explicit pivot: member clearly states they are changing direction → follow new direction
 
-B. Determine the member's actual state:
-   → FLOWING: deliberate strategic progress, conscious choices, no real block
-   → STUCK: genuine block — member is not doing what they said they wanted to do, no stated reason
-   → MIXED: real achievements this week AND a genuine obstacle worth naming
-   → PIVOTING: member explicitly states they are shifting to a new direction
+[Classify state]
+FLOWING — deliberate progress, conscious choices, no real block
+   Also use FLOWING if member is clearly at a MORE ADVANCED stage than the prep goal assumed
+   (e.g. already in active interviews when goal was to start applying — that's ahead, not behind)
+STUCK — member is not doing what they committed to, no stated reason
+MIXED — real achievement AND a genuine obstacle (not just a quantity shortfall)
+PIVOTING — member explicitly states they are shifting to a new direction
 
-   Rules:
-   - If the member states a reason for pausing (e.g. "staying at current job after negotiation",
-     "pausing X to focus on Y"), treat as FLOWING or PIVOTING — never as avoidance.
-   - MIXED requires BOTH real achievement AND a real obstacle. Do not label MIXED if the only
-     issue is a quantity shortfall against a target.
-   - A member who IS taking action (interviewing, producing work, completing tasks) is NOT
-     experiencing "Launch Friction" — Launch Friction = can't start at all.
-   - External factors (market conditions, waiting for responses, others' decisions) are NOT
-     the member's block. If anxiety about uncontrollable factors is affecting them, use
-     "Stoic Control Boundary" lens.
+Rules:
+- A stated reason for pausing = FLOWING or PIVOTING, never avoidance
+- Launch Friction = literally can't start. A member who IS interviewing/producing/completing tasks is NOT Launch Friction
+- External anxieties (market, layoffs, waiting on others) = Stoic Control Boundary, not a personal block
+- MIXED requires both real wins AND a real obstacle
 
-C. If STUCK or MIXED, name the block precisely:
-   ✗ vague → ✓ "completed interviews but has not applied to new positions despite weekly goal"
-   Then choose ONE lens that fits:
-   Cognitive Overload / Launch Friction (can't start) / Learned Helplessness (Seligman) /
-   Fear of Evaluation / Identity Gap (James Clear) / Meaning Deficit (Frankl) /
-   Progress Blindness (Amabile — can't see own wins) / Execution Fragmentation /
-   Stoic Control Boundary (anxiety over uncontrollables) / WOOP gap (no concrete plan) /
-   Goal-Action Gap (check-ins diverged from weekly commitment without stated reason)
+[If STUCK or MIXED, choose ONE precise lens]
+Cognitive Overload / Launch Friction (can't start at all) / Learned Helplessness /
+Fear of Evaluation / Identity Gap / Meaning Deficit / Progress Blindness (can't see own wins) /
+Execution Fragmentation / Stoic Control Boundary / WOOP gap / Goal-Action Gap
 
-D. Micro-action must come from the member's actual weekly goal AND check-ins combined.
-   For gap cases (1Ab): the micro-action should gently bridge back to the weekly goal.
-   For pivots (1Ac): follow the new direction only.
-   Do not invent goals the member did not set themselves.
+[Micro-action source]
+Gap cases: bridge gently back to weekly goal
+Pivot cases: follow new direction
+Never invent goals the member didn't set themselves
 
-E. Decide output language: Traditional Chinese if check-ins are mostly Chinese; English if mostly English.
+[Language]
+Traditional Chinese if check-ins are mostly Chinese; English if mostly English.
 
-═══════════════════════════════════
-STEP 2 — OUTPUT (write in the language from Step 1E):
-═══════════════════════════════════
+Now write ONLY the output. Start directly with 🎯. Do not include any analysis or labels.
 
 Use EXACTLY these three headers, no greeting, no sign-off:
 
