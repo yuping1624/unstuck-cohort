@@ -89,10 +89,11 @@ IMPORTANT: Never use framework names or jargon (e.g. "斯多葛", "Launch Fricti
 
 🚀 微行動 / Micro-action:
 ONE concrete Implementation Intention written entirely in the output language (do NOT mix languages):
-Chinese output → 「當[具體觸發點]，我會[微小行動]。」
+Chinese output → 當[具體觸發點]，我會[微小行動]。（不加引號）
 English output → "When [specific trigger], I will [tiny behaviour]."
 Rules:
-- Must be an ACTIVE behaviour (doing, writing, sending, calling) — not passive (reading, looking, watching)
+- Must be an ACTIVE behaviour: 寫/打/發送/完成/開啟並輸入/打電話 etc.
+- FORBIDDEN passive verbs: 看/閱讀/瀏覽/查看/review/browse/read/watch/look at
 - Must take ≤2 minutes to START
 - Grounded in their real direction (bridge toward weekly goal for gap cases)
 

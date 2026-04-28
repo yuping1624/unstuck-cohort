@@ -170,7 +170,8 @@ ONE concrete Implementation Intention written entirely in the output language (d
 Chinese output → 「當[具體觸發點]，我會[微小行動]。」
 English output → "When [specific trigger], I will [tiny behaviour]."
 Rules:
-- Must be an ACTIVE behaviour (doing, writing, sending, calling) — not passive (reading, looking, watching)
+- Must be an ACTIVE behaviour: 寫/打/發送/完成/開啟並輸入/打電話 etc.
+- FORBIDDEN passive verbs: 看/閱讀/瀏覽/查看/review/browse/read/watch/look at
 - Must take ≤2 minutes to START
 - Grounded in their real direction (bridge toward weekly goal for gap cases)
 
@@ -187,7 +188,7 @@ Total: 180-230 Chinese characters OR 150-190 English words."""
 CRITERIA = [
     ("no_language_mix", "微行動句子是否完全用單一語言（不混用 When/I will 和中文）？"),
     ("no_jargon", "洞見中是否完全沒有出現心理學術語或英文框架名稱（斯多葛、Launch Friction、WOOP、Stoic、Amabile 等）？"),
-    ("active_microaction", "微行動是否是主動行為（做、寫、發、打、完成），而不是被動行為（看、閱讀、瀏覽）？"),
+    ("active_microaction", "微行動的動詞是否為主動行為（寫、打、發送、完成、開啟並輸入等）？若包含「看」、「閱讀」、「瀏覽」、「查看」、「browse」、「read」、「watch」、「look at」等被動動詞則為 false。"),
     ("no_prompt_leak", "輸出是否完全沒有出現分析步驟、分類標籤、STEP 1/STEP 2 等內容？"),
     ("correct_state", "整體語氣和建議是否符合該成員的實際狀態（FLOWING/STUCK/MIXED/PIVOTING/Gap）？"),
 ]
