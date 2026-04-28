@@ -59,7 +59,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 
 # ─────────────────────────────────────────
@@ -670,6 +670,41 @@ async def deletecheckin(ctx, member: discord.Member = None):
 
 
 # ─────────────────────────────────────────
+# 指令：!help
+# ─────────────────────────────────────────
+@bot.command(name="help")
+async def help_command(ctx):
+    """列出所有可用指令"""
+    is_admin = ctx.author.guild_permissions.administrator
+
+    embed = discord.Embed(title="📖 指令清單", color=0x7c3aed)
+
+    embed.add_field(
+        name="一般成員",
+        value=(
+            "`!stats` — 查看群組整體統計\n"
+            "`!leaderboard` / `!lb` — 本週打卡排行榜\n"
+            "`!me` — 取得你的個人頁面連結（DM 給你）"
+        ),
+        inline=False,
+    )
+
+    if is_admin:
+        embed.add_field(
+            name="管理員限定",
+            value=(
+                "`!deletecheckin [@member]` — 刪除某人今天的打卡（測試用）\n"
+                "`!syncgoals` — 掃描 #weekly-goals，補齊所有人的目標資料\n"
+                "`!testreport [@member]` — 預覽單人週報\n"
+                "`!testreports` — 預覽所有成員週報\n"
+                "`!survey [#頻道]` — 啟動結業問卷（Q3 預設發到 #general-chat）"
+            ),
+            inline=False,
+        )
+
+    await ctx.reply(embed=embed)
+
+
 # 指令：/stats
 # ─────────────────────────────────────────
 @bot.command(name="stats")
