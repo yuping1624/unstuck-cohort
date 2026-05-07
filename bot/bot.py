@@ -1427,7 +1427,6 @@ async def on_message(message: discord.Message):
     }
     is_thread = isinstance(message.channel, discord.Thread) or \
                 getattr(message.channel, 'type', None) in _thread_types
-    print(f"[debug] channel={message.channel!r} type={getattr(message.channel,'type',None)} is_thread={is_thread}")
     if is_thread:
         await bot.process_commands(message)
         return
@@ -1459,7 +1458,10 @@ async def on_message(message: discord.Message):
 
     # 已打卡：不重複記錄，但給個提示
     if already_checked_in(member_id, member_tz):
-        await message.add_reaction("✅")
+        try:
+            await message.add_reaction("✅")
+        except Exception:
+            pass
         return
 
     # 儲存打卡
@@ -1475,7 +1477,10 @@ async def on_message(message: discord.Message):
     streak = update_streak(member_id, member_tz, checkin["date"])
 
     # 確認 reaction
-    await message.add_reaction("✅")
+    try:
+        await message.add_reaction("✅")
+    except Exception:
+        pass
 
     # 產生 AI 回覆（非同步，避免卡住）
     async with message.channel.typing():
@@ -1539,7 +1544,10 @@ async def on_message(message: discord.Message):
 
         except Exception as e:
             print(f"AI 回覆失敗：{e}")
-            await message.add_reaction("✅")
+            try:
+                await message.add_reaction("✅")
+            except Exception:
+                pass
 
     await bot.process_commands(message)
 
