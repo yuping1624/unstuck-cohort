@@ -1627,6 +1627,8 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
 # ─────────────────────────────────────────
 @tasks.loop(hours=1)
 async def daily_reminder():
+    if os.environ.get("DISABLE_DAILY_REMINDER", "").lower() == "true":
+        return
     now_utc = datetime.now(timezone.utc)
 
     # 取所有成員（含時區）
