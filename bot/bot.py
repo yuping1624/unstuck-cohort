@@ -918,11 +918,21 @@ async def syncgoals(ctx):
 
     # Forum 頻道：每個帖子（post）是一個 Thread，第一則訊息是主目標
     threads = list(goals_channel.threads)
+    print(f"[syncgoals] active threads: {len(threads)}")
+
     # 也抓取已封存的帖子
-    async for thread in goals_channel.archived_threads(limit=None):
-        threads.append(thread)
+    try:
+        archived = []
+        async for thread in goals_channel.archived_threads(limit=100):
+            archived.append(thread)
+        threads.extend(archived)
+        print(f"[syncgoals] archived threads: {len(archived)}, total: {len(threads)}")
+    except Exception as e:
+        print(f"[syncgoals] archived_threads 失敗：{e}")
+        await ctx.reply(f"⚠️ 無法讀取封存帖子：{e}，繼續處理已開放的帖子...")
 
     for thread in threads:
+        print(f"[syncgoals] 處理 thread: {thread.name} ({thread.id})")
         # 取得帖子的第一則訊息（即主目標訊息）
         messages = [msg async for msg in thread.history(limit=None, oldest_first=True)]
         if not messages:
@@ -941,6 +951,7 @@ async def syncgoals(ctx):
             await _process_goal_thread(thread, member_id)
 
         count += 1
+        print(f"[syncgoals] 已完成 {count} 位")
 
     await ctx.reply(f"✅ 完成！已同步 {count} 位成員的目標資料。")
 
