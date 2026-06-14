@@ -702,7 +702,7 @@ async def help_command(ctx):
             name="管理員限定",
             value=(
                 "`!deletecheckin [@member]` — 刪除某人今天的打卡（測試用）\n"
-                "`!syncgoals` — 掃描 #weekly-goals，補齊所有人的目標資料\n"
+                "`!syncgoals` — 掃描 #12週目標，補齊所有人的目標資料\n"
                 "`!testreport [@member]` — 預覽單人週報\n"
                 "`!testreports` — 預覽所有成員週報\n"
                 "`!survey [#頻道]` — 啟動結業問卷（Q3 預設發到 #general-chat）"
@@ -1102,7 +1102,16 @@ async def post_report_preview(member_row: dict, guild: discord.Guild,
     if not has_any_goal or len(checkins) == 0:
         return False
 
-    has_weekly_goal = bool(member_row.get("goal_thread_current"))
+    # 週報判斷上週（上上週日到上週六）有沒有寫週目標
+    # 週期定義：週日到週六
+    # last_sunday = 上週日（昨天）= 這週的第一天
+    # 上週六 = last_sunday - 1天
+    # 上上週日 = last_sunday - 7天
+    last_last_sunday = datetime.combine(last_sunday - timedelta(days=7), datetime.min.time()).replace(tzinfo=ZoneInfo(tz_str))
+    last_saturday = datetime.combine(last_sunday - timedelta(days=1), datetime.max.time().replace(microsecond=0)).replace(tzinfo=ZoneInfo(tz_str))
+    goal_updated = member_row.get("goal_updated_at")
+    goal_updated_dt = datetime.fromisoformat(goal_updated).astimezone(ZoneInfo(tz_str)) if goal_updated else None
+    has_weekly_goal = bool(goal_updated_dt and last_last_sunday <= goal_updated_dt <= last_saturday)
     if not force and (len(checkins) < 3 or not has_weekly_goal):
         return False
 
@@ -1138,7 +1147,7 @@ async def weekly_report():
     now_utc = datetime.now(timezone.utc)
 
     all_members = supabase.table("members") \
-        .select("id, discord_id, display_name, timezone, goal_12week_summary, goal_thread_current") \
+        .select("id, discord_id, display_name, timezone, goal_12week_summary, goal_thread_current, goal_updated_at") \
         .execute().data
 
     for guild in bot.guilds:
@@ -1150,6 +1159,31 @@ async def weekly_report():
             local = now_utc.astimezone(ZoneInfo(tz_str))
             if local.weekday() == 0 and local.hour == 20:
                 await post_report_preview(m, guild, admin_ch)
+
+                # 私訊提醒還沒寫當週目標的成員（週一 + 週四）
+                is_reminder_day = local.weekday() in (0, 3)  # 0=週一, 3=週四
+                # 週期定義：週日到週六，找「這週日」的 00:00
+                days_since_sunday = (local.weekday() + 1) % 7  # 週日=0, 週一=1, ...
+                this_week_sunday = (local - timedelta(days=days_since_sunday)).replace(hour=0, minute=0, second=0, microsecond=0)
+                goal_updated = m.get("goal_updated_at")
+                goal_updated_dt = datetime.fromisoformat(goal_updated).astimezone(ZoneInfo(tz_str)) if goal_updated else None
+                has_this_week_goal = goal_updated_dt and goal_updated_dt >= this_week_sunday
+                if is_reminder_day and not has_this_week_goal:
+                    try:
+                        discord_user = await bot.fetch_user(int(m["discord_id"]))
+                        if local.weekday() == 0:
+                            msg = (
+                                f"嗨 {m.get('display_name', '')} 👋\n"
+                                f"新的一週開始了，還沒有在 #12週目標 寫下本週目標。寫下來可以幫助 bot 給你更個人化的回覆，也讓自己更清楚這週想往哪裡走 🌱"
+                            )
+                        else:
+                            msg = (
+                                f"嗨 {m.get('display_name', '')} 👋\n"
+                                f"這週已經過一半了，還沒有在 #12週目標 寫下本週目標。現在寫還來得及，哪怕只是一兩句話也好 🌿"
+                            )
+                        await discord_user.send(msg)
+                    except Exception as e:
+                        print(f"私訊提醒失敗 ({m['discord_id']}): {e}")
 
 
 @bot.command(name="testreport")
@@ -1259,7 +1293,7 @@ class SurveyQ2View(discord.ui.View):
 async def survey(ctx, public_channel: discord.TextChannel = None):
     """[Admin] 啟動結業問卷：私訊所有成員 Q1+Q2，並在指定公開頻道發 Q3。
     用法：!survey 或 !survey #頻道名稱"""
-    q3_channel = public_channel or discord.utils.get(ctx.guild.channels, name="general-chat") or ctx.channel
+    q3_channel = public_channel or discord.utils.get(ctx.guild.channels, name="休閒廣場") or ctx.channel
     admin_ch = discord.utils.get(ctx.guild.channels, name=ADMIN_CHANNEL_NAME)
     if not admin_ch:
         await ctx.reply(f"找不到 #{ADMIN_CHANNEL_NAME} 頻道，請先建立它。")
@@ -1533,12 +1567,16 @@ async def on_message(message: discord.Message):
             )
             save_ai_reply(checkin["id"], reply)
 
-            # 加入連續打卡里程碑（個人頁連結改由 !me 私訊取得，不在公開頻道揭露）
+            # 算本週打卡天數
+            week_checkin_count = len(week_checkins) + 1  # +1 包含今天
+
             milestone = ""
-            if streak in (3, 7, 14, 21, 30):
-                milestone = f"\n\n🔥 **{streak} 天連續打卡里程碑！** 你做到了！"
-            elif streak > 1:
-                milestone = f"\n*（連續第 {streak} 天 🔥）*"
+            if week_checkin_count >= 7:
+                milestone = f"\n\n🔥 **本週每天都打卡了！** 太厲害了！"
+            elif week_checkin_count == 3:
+                milestone = f"\n\n🎉 **本週已打卡 3 天，解鎖週報功能！** 每週日晚上會收到你的個人週報。"
+            elif week_checkin_count > 1:
+                milestone = f"\n*（本週已打卡 {week_checkin_count} 天）*"
 
             await message.reply(reply + milestone, mention_author=False)
 
@@ -1667,21 +1705,27 @@ async def daily_reminder():
 
     # 發提醒
     for guild in bot.guilds:
-        channel = discord.utils.get(guild.channels, name="daily-micro-action")
+        channel = discord.utils.get(guild.channels, name="每日打卡")
         if not channel:
             continue
 
+        weekday = datetime.now(TZ).weekday()  # 0=週一, 6=週日
+        daily_messages = [
+            "新的一週開始了，不管昨天發生什麼，今天都是全新的起點。往前踏出一小步吧 🌱",
+            "昨天的動力還在嗎？記錄今天的一個小進展，讓自己看見自己在前進。",
+            "撐過今天就到週後半段了，今天做了什麼讓你更靠近目標的事？",
+            "還差一點就到週末了，今天有沒有比昨天的自己更前進一點點？",
+            "週末前最後一天，來記錄一下今天的收穫吧，不用多，一句話就夠。",
+            "休息也是前進的一部分，今天有沒有做到一件小事？來留個紀錄吧 🌿",
+            "這週過得怎麼樣？不管完成了多少，來這裡寫下今天的一句話，讓這週有個完整的句點 🌙",
+        ]
+        message = daily_messages[weekday]
+
         if len(missing) <= 5:
             mentions = " ".join(f"<@{m['discord_id']}>" for m in missing)
-            await channel.send(
-                f"👋 還沒打卡的朋友們：{mentions}\n"
-                f"今天不管發生什麼，哪怕只是一句話，來這裡記錄一下吧 🌙"
-            )
+            await channel.send(f"{mentions}\n{message}")
         else:
-            await channel.send(
-                f"👋 還有 **{len(missing)} 位**朋友今天還沒打卡，\n"
-                f"不管今天過得如何，一句話就夠了 🌙"
-            )
+            await channel.send(f"還有 **{len(missing)} 位**朋友今天還沒打卡，\n{message}")
 
 
 # ─────────────────────────────────────────
@@ -1690,14 +1734,14 @@ async def daily_reminder():
 @tasks.loop(hours=24)
 async def weekly_summary():
     now = datetime.now(TZ)  # 台灣時間 (UTC+8)
-    if now.weekday() != 6 or now.hour != 22:  # 週日 台灣晚上 10 點（美東早上 10 點）
+    if now.weekday() != 6 or now.hour != 20:  # 週日 台灣晚上 8 點（多倫多早上 8 點夏令）
         return
     if current_week() == 0:  # 尚未開始（3/9 前）不發週總結
         return
 
     for guild in bot.guilds:
         admin_ch = discord.utils.get(guild.channels, name=ADMIN_CHANNEL_NAME)
-        announcement_ch = discord.utils.get(guild.channels, name="announcement")
+        announcement_ch = discord.utils.get(guild.channels, name="休閒廣場")
         if not announcement_ch:
             continue
 

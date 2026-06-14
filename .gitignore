@@ -25,3 +25,9 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# Claude Code
+.claude/
+
+# 暫時文件
+ANNOUNCEMENT.md

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Discord job-search support bot (Python) paired with a Next.js admin/member dashboard, backed by Supabase (PostgreSQL). The system supports a 12-week career community with daily check-ins, AI-powered replies, streak tracking, and leaderboards.
 
-- **Bot**: Railway deployment, `bot/` directory
+- **Bot**: GCE e2-micro deployment (us-central1, free tier), `bot/` directory
 - **Dashboard**: Vercel deployment, `dashboard/` directory
 - **Database**: Supabase (schema + migrations in `supabase/`)
 
@@ -43,15 +43,15 @@ Migrations are applied **manually** via the Supabase Dashboard SQL Editor — th
 6. `/api/insights` calls Gemini to generate admin analytics
 
 **Goal Sync Flow:**
-- Member posts/edits in `#weekly-goals` Forum → bot auto-updates `goal_12week_summary` (main post) or `goal_thread_current` / `goal_thread_history` (thread replies)
-- `!syncgoals` admin command: one-time scan of all historical `#weekly-goals` posts to backfill goal summaries
+- Member posts/edits in `#12週目標` Forum → bot auto-updates `goal_12week_summary` (main post) or `goal_thread_current` / `goal_thread_history` (thread replies)
+- `!syncgoals` admin command: one-time scan of all historical `#12週目標` posts to backfill goal summaries
 
 ### Bot (`bot/bot.py`)
 - Check-in channels: `CHECKIN_CHANNELS` constant (messages auto-trigger check-in logic)
 - Chat channels: `CHAT_CHANNELS` (bot responds when @mentioned)
 - AI model: `gemini-2.5-flash-lite` via `google-genai`
 - Scheduled tasks: daily reminder (members who haven't checked in), weekly Sunday summary
-- `!syncgoals` admin command: one-time scan of `#weekly-goals` Forum, backfills AI goal summaries for all members
+- `!syncgoals` admin command: one-time scan of `#12週目標` Forum, backfills AI goal summaries for all members
 - `!deletecheckin` admin command: deletes today's check-in for a member (testing use only), also resets streak by -1
 - Group start date: `2026-03-09` — week numbers (0–12) computed from this anchor
 
@@ -99,5 +99,5 @@ ADMIN_PASSWORD=
 - `SUPABASE_KEY` in bot must be the `service_role` key (RLS bypass); the dashboard uses `anon` key for public reads
 - Week number logic is tied to `GROUP_START_DATE = 2026-03-09`; changing this affects leaderboard and all week calculations
 - The `checkins` table has a unique constraint on `(member_id, date)` — duplicate check-ins on the same local date are silently ignored by the bot (returns existing row)
-- `#weekly-goals` must be a **Forum channel** — the bot uses `thread.owner_id` to identify the post author; regular text channels are not supported for goal sync
+- `#12週目標` must be a **Forum channel** — the bot uses `thread.owner_id` to identify the post author; regular text channels are not supported for goal sync
 - Goal summaries use Gemini `gemini-2.5-flash-lite`; texts ≤200 chars are stored as-is, longer texts are summarized
