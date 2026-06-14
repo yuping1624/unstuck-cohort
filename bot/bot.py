@@ -29,10 +29,10 @@ SUPABASE_KEY    = os.environ["SUPABASE_KEY"]       # service_role key
 GEMINI_KEY      = os.environ["GEMINI_API_KEY"]
 
 # 打卡頻道名稱（可以是多個）
-CHECKIN_CHANNELS = {"每日打卡", "daily-micro-action", "test-checkin"}
+CHECKIN_CHANNELS = {"每日打卡"}
 
 # 允許 Tag bot 發問/聊天的頻道
-CHAT_CHANNELS = {"general", "閒聊", "求職討論"}
+CHAT_CHANNELS = {"general", "閒聊", "求職討論", "win-block-ask", "休閒廣場"}
 
 # 當使用者用英文打卡/聊天時，是否在回覆中「順帶」友善糾正英文（可選一句）
 ENABLE_ENGLISH_CORRECTION = True
@@ -41,7 +41,7 @@ ENABLE_ENGLISH_CORRECTION = True
 ADMIN_CHANNEL_NAME = "bot-log"
 
 # 不發每日提醒的成員（助教/觀察者角色）
-REMINDER_EXCLUDED = {"680760447972147247", "214883164009529344"}  # Zoe-Yeh, Trapper
+REMINDER_EXCLUDED = set()
 
 # Dashboard 網址（選填，用於 !me 產生專屬連結，例如 https://xxx.vercel.app）
 DASHBOARD_URL = (os.environ.get("DASHBOARD_URL") or "").strip().rstrip("/")
@@ -553,7 +553,7 @@ def save_ai_reply(checkin_id: str, reply: str):
 # ─────────────────────────────────────────
 # 目標相關工具函式
 # ─────────────────────────────────────────
-GOAL_CHANNEL_NAME = "weekly-goals"
+GOAL_CHANNEL_NAME = "12週目標"
 GOAL_SUMMARY_THRESHOLD = 200  # 超過此字數才做 summary，否則存原文
 
 
