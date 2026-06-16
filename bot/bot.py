@@ -1727,7 +1727,9 @@ async def daily_reminder():
         if not channel:
             continue
 
-        weekday = datetime.now(TZ).weekday()  # 0=週一, 6=週日
+        # 用被提醒成員的本地時區決定星期幾，而非固定台灣時間
+        member_tz = ZoneInfo(members_to_check[0].get("timezone") or "Asia/Taipei")
+        weekday = now_utc.astimezone(member_tz).weekday()  # 0=週一, 6=週日
         daily_messages = [
             "新的一週開始了，不管昨天發生什麼，今天都是全新的起點。往前踏出一小步吧 🌱",
             "昨天的動力還在嗎？記錄今天的一個小進展，讓自己看見自己在前進。",
