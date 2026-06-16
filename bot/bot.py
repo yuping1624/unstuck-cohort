@@ -146,7 +146,7 @@ def get_or_create_member(discord_id: str, username: str, display_name: str) -> d
         "discord_id": discord_id,
         "username": username,
         "display_name": display_name,
-        "joined_at": datetime.now(TZ).isoformat(),
+        "joined_at": datetime.now(timezone.utc).isoformat(),
     }
     inserted = supabase.table("members").insert(new_member).execute()
     return inserted.data[0]
@@ -546,7 +546,7 @@ def save_ai_reply(checkin_id: str, reply: str):
     supabase.table("ai_replies").insert({
         "checkin_id": checkin_id,
         "reply": reply,
-        "created_at": datetime.now(TZ).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }).execute()
 
 
@@ -862,7 +862,7 @@ async def _process_goal_message(message: discord.Message):
     supabase.table("members").update({
         "goal_12week_summary": summary,
         "goal_message_id": str(message.id),
-        "goal_updated_at": datetime.now(TZ).isoformat(),
+        "goal_updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", member_id).execute()
     return member_id
 
@@ -900,7 +900,7 @@ async def _process_goal_thread(thread: discord.Thread, member_id: str):
     supabase.table("members").update({
         "goal_thread_current": current,
         "goal_thread_history": history,
-        "goal_updated_at": datetime.now(TZ).isoformat(),
+        "goal_updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", member_id).execute()
 
 
@@ -1727,7 +1727,9 @@ async def daily_reminder():
         if not channel:
             continue
 
-        weekday = datetime.now(TZ).weekday()  # 0=週一, 6=週日
+        # 用被提醒成員的本地時區決定星期幾，而非固定台灣時間
+        member_tz = ZoneInfo(members_to_check[0].get("timezone") or "Asia/Taipei")
+        weekday = now_utc.astimezone(member_tz).weekday()  # 0=週一, 6=週日
         daily_messages = [
             "新的一週開始了，不管昨天發生什麼，今天都是全新的起點。往前踏出一小步吧 🌱",
             "昨天的動力還在嗎？記錄今天的一個小進展，讓自己看見自己在前進。",
