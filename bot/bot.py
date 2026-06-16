@@ -932,6 +932,9 @@ async def syncgoals(ctx):
         await ctx.reply(f"⚠️ 無法讀取封存帖子：{e}，繼續處理已開放的帖子...")
 
     for thread in threads:
+        if thread.name.startswith("[模板]"):
+            print(f"[syncgoals] 跳過模板帖子: {thread.name}")
+            continue
         print(f"[syncgoals] 處理 thread: {thread.name} ({thread.id})")
         # 取得帖子的第一則訊息（即主目標訊息）
         messages = [msg async for msg in thread.history(limit=None, oldest_first=True)]
@@ -1406,6 +1409,7 @@ async def on_message(message: discord.Message):
         and message.channel.parent
         and message.channel.parent.name == GOAL_CHANNEL_NAME
         and message.id == message.channel.id
+        and not message.channel.name.startswith("[模板]")
     ):
         try:
             await _process_goal_message(message)
@@ -1418,6 +1422,7 @@ async def on_message(message: discord.Message):
         isinstance(message.channel, discord.Thread)
         and message.channel.parent
         and message.channel.parent.name == GOAL_CHANNEL_NAME
+        and not message.channel.name.startswith("[模板]")
     ):
         try:
             # Forum 頻道的討論串，owner_id 就是發起帖子的人
@@ -1616,6 +1621,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
         and after.channel.parent
         and after.channel.parent.name == GOAL_CHANNEL_NAME
         and after.id == after.channel.id
+        and not after.channel.name.startswith("[模板]")
     ):
         try:
             await _process_goal_message(after)
@@ -1628,6 +1634,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
         isinstance(after.channel, discord.Thread)
         and after.channel.parent
         and after.channel.parent.name == GOAL_CHANNEL_NAME
+        and not after.channel.name.startswith("[模板]")
     ):
         try:
             owner_id = after.channel.owner_id
@@ -1732,11 +1739,8 @@ async def daily_reminder():
         ]
         message = daily_messages[weekday]
 
-        if len(missing) <= 5:
-            mentions = " ".join(f"<@{m['discord_id']}>" for m in missing)
-            await channel.send(f"{mentions}\n{message}")
-        else:
-            await channel.send(f"還有 **{len(missing)} 位**朋友今天還沒打卡，\n{message}")
+        mentions = " ".join(f"<@{m['discord_id']}>" for m in missing)
+        await channel.send(f"{mentions}\n{message}")
 
 
 # ─────────────────────────────────────────
