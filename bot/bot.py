@@ -46,6 +46,10 @@ REMINDER_EXCLUDED = set()
 # Dashboard 網址（選填，用於 !me 產生專屬連結，例如 https://xxx.vercel.app）
 DASHBOARD_URL = (os.environ.get("DASHBOARD_URL") or "").strip().rstrip("/")
 
+# 限定提醒/廣播只發到此 Guild（選填，填 Discord Server ID 可避免測試伺服器收到）
+_guild_id_env = os.environ.get("GUILD_ID", "").strip()
+TARGET_GUILD_ID = int(_guild_id_env) if _guild_id_env else None
+
 # 群組開始日期：以「每人所在地區的 3/9」為第 1 天，週數依成員時區計算
 GROUP_START_DATE = datetime(2026, 3, 9, tzinfo=timezone.utc)
 
@@ -1165,6 +1169,8 @@ async def weekly_report():
         .execute().data
 
     for guild in bot.guilds:
+        if TARGET_GUILD_ID and guild.id != TARGET_GUILD_ID:
+            continue
         admin_ch = discord.utils.get(guild.channels, name=ADMIN_CHANNEL_NAME)
         if not admin_ch:
             continue
@@ -1723,6 +1729,8 @@ async def daily_reminder():
 
     # 發提醒
     for guild in bot.guilds:
+        if TARGET_GUILD_ID and guild.id != TARGET_GUILD_ID:
+            continue
         channel = discord.utils.get(guild.channels, name="每日打卡")
         if not channel:
             continue
@@ -1741,8 +1749,18 @@ async def daily_reminder():
         ]
         message = daily_messages[weekday]
 
-        mentions = " ".join(f"<@{m['discord_id']}>" for m in missing)
-        await channel.send(f"{mentions}\n{message}")
+        # 分批發送，避免超過 Discord 2000 字元限制
+        mention_tokens = [f"<@{m['discord_id']}>" for m in missing]
+        batch, batch_len = [], 0
+        for token in mention_tokens:
+            # +1 for the space separator
+            if batch and batch_len + 1 + len(token) > 1900:
+                await channel.send(" ".join(batch) + f"\n{message}")
+                batch, batch_len = [], 0
+            batch.append(token)
+            batch_len += (1 if batch_len else 0) + len(token)
+        if batch:
+            await channel.send(" ".join(batch) + f"\n{message}")
 
 
 # ─────────────────────────────────────────
@@ -1757,6 +1775,8 @@ async def weekly_summary():
         return
 
     for guild in bot.guilds:
+        if TARGET_GUILD_ID and guild.id != TARGET_GUILD_ID:
+            continue
         admin_ch = discord.utils.get(guild.channels, name=ADMIN_CHANNEL_NAME)
         announcement_ch = discord.utils.get(guild.channels, name="休閒廣場")
         if not announcement_ch:
